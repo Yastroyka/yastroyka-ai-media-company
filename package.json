@@ -10,9 +10,18 @@
     "pnpm": "11.20.0"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.1",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
   },
   "scripts": {
-    "toolchain:check": "node scripts/doctor.mjs"
+    "toolchain:check": "node scripts/doctor.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check .",
+    "quality:check": "pnpm run toolchain:check && pnpm run lint && pnpm run format:check"
   }
 }
