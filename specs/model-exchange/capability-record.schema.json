@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CapabilityRecord",
+  "type": "object",
+  "required": [
+    "model_id",
+    "provider",
+    "revision",
+    "task_classes",
+    "lifecycle",
+    "verified_at"
+  ],
+  "properties": {
+    "model_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "string"
+    },
+    "task_classes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scores": {
+      "type": "object"
+    },
+    "lifecycle": {
+      "enum": [
+        "DISCOVERED",
+        "QUARANTINE",
+        "BENCHMARK",
+        "SHADOW",
+        "CANARY",
+        "PRODUCTION",
+        "SUSPENDED",
+        "REVOKED"
+      ]
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProductContentPack",
+  "type": "object",
+  "required": [
+    "product",
+    "offer",
+    "offer_snapshot",
+    "rights",
+    "tracking"
+  ],
+  "properties": {
+    "product": {
+      "type": "object"
+    },
+    "offer": {
+      "type": "object"
+    },
+    "offer_snapshot": {
+      "type": "object"
+    },
+    "rights": {
+      "type": "object"
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "tracking": {
+      "type": "object"
+    }
+  }
+}

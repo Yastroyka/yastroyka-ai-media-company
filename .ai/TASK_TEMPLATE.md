@@ -1,0 +1,12 @@
+# TASK-XXX — Title
+## OBJECTIVE
+## CONTEXT
+## SCOPE
+## OUT OF SCOPE
+## RISK
+## ACCEPTANCE
+## TESTS
+## ROLLBACK
+## EVIDENCE
+## CONFLICT RULE
+If requirements conflict, return BLOCKED/CONFLICT.

@@ -1,0 +1,20 @@
+version: 1
+principles:
+  default_deny: true
+  least_privilege: true
+risk_classes:
+  R0: { description: read-only low-risk }
+  R1: { description: reversible staging action }
+  R2: { description: production write/reversible external action }
+  R3: { description: irreversible/high-impact action }
+actors:
+  claude_orchestrator:
+    default_scopes: [commerce:read, model_exchange:route, content:draft, analytics:read]
+  codex_developer:
+    default_scopes: [repo:branch_write, ci:run]
+    denied_scopes: [production:write, secrets:read_raw]
+rules:
+  - id: commerce-production-read-only
+    resource: production_catalog
+    actions: [price_write, stock_write, product_master_write]
+    effect: deny

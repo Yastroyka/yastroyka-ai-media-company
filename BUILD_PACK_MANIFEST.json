@@ -1,0 +1,17 @@
+{
+  "project": "YASTROYKA AI MEDIA COMPANY",
+  "build_pack_version": "0.1",
+  "baseline": "Master Plan v3.8",
+  "created_at": "2026-08-11",
+  "primary_language": "TypeScript",
+  "runtime": "Node.js",
+  "backend": "H3",
+  "frontend": "Vue 3 + Nuxt 4",
+  "canonical_db": "PostgreSQL",
+  "search_projection": "Elasticsearch",
+  "job_queue": "BullMQ",
+  "durable_workflows": "Temporal",
+  "integration_edge": "n8n",
+  "python_policy": "PROHIBITED_BY_DEFAULT",
+  "task_count": 12
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CatalogProduct",
+  "type": "object",
+  "required": [
+    "product_id",
+    "name",
+    "verified_facts"
+  ],
+  "properties": {
+    "product_id": {
+      "type": "string"
+    },
+    "sku": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "brand": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verified_facts": {
+      "type": "object"
+    },
+    "media_assets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

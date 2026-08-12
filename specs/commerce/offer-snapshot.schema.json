@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OfferSnapshot",
+  "type": "object",
+  "required": [
+    "offer_id",
+    "captured_at",
+    "currency",
+    "price",
+    "availability"
+  ],
+  "properties": {
+    "offer_id": {
+      "type": "string"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "stock": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "availability": {
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

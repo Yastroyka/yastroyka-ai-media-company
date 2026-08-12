@@ -1,0 +1,9 @@
+release: R1
+gates:
+  - { id: COMMERCE-FRESHNESS, pass: stale_offer_is_blocked_or_refreshed }
+  - { id: MODEL-ROUTING, pass: minimum_3_task_classes_with_2_eligible_candidates_each }
+  - { id: PROVIDER-OUTAGE, pass: state_survives_and_fallback_or_assisted_mode_works }
+  - { id: VK-SPLIT, pass: vk_community_and_vk_video_have_separate_publication_ids }
+  - { id: MAX-OS, pass: max_has_independent_workspace_and_native_adaptation }
+  - { id: SECURITY, pass: forbidden_production_catalog_write_is_denied_and_audited }
+  - { id: RECOVERY, pass: restore_drill_completed }

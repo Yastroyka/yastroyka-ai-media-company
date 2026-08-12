@@ -1,0 +1,56 @@
+# Node.js
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build output
+dist/
+.output/
+.nuxt/
+.nitro/
+coverage/
+.tmp/
+temp/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Testing
+playwright-report/
+test-results/
+
+# Runtime
+*.pid
+*.pid.lock
+
+# Local storage / caches
+.cache/
+.eslintcache
+
+# Secrets / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Docker/local volumes
+docker-data/
+volumes/

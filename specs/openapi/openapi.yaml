@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: YASTROYKA AI MEDIA COMPANY Internal API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200": { description: OK }
+  /v1/commerce/products/{productId}/content-pack:
+    get:
+      operationId: getProductContentPack
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Product Content Pack }
+  /v1/model-exchange/route:
+    post:
+      operationId: routeModel
+      responses:
+        "200": { description: Routing decision }

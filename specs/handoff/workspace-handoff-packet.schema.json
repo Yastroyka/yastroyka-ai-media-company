@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceHandoffPacket",
+  "type": "object",
+  "required": [
+    "handoff_id",
+    "source_workspace",
+    "objective",
+    "artifacts"
+  ],
+  "properties": {
+    "handoff_id": {
+      "type": "string"
+    },
+    "source_workspace": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

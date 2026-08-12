@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoutingDecision",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "request_id",
+    "winner",
+    "why_this_model"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "winner": {
+      "type": "object"
+    },
+    "fallbacks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "why_this_model": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

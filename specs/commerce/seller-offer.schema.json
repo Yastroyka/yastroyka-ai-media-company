@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SellerOffer",
+  "type": "object",
+  "required": [
+    "offer_id",
+    "product_id",
+    "seller_id",
+    "region",
+    "status"
+  ],
+  "properties": {
+    "offer_id": {
+      "type": "string"
+    },
+    "product_id": {
+      "type": "string"
+    },
+    "seller_id": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "INACTIVE",
+        "BLOCKED"
+      ]
+    }
+  }
+}

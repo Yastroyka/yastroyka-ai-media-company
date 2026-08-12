@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoutingRequest",
+  "type": "object",
+  "required": [
+    "request_id",
+    "task_class",
+    "mode",
+    "requirements"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "task_class": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "MAX_QUALITY",
+        "BEST_VALUE",
+        "FAST",
+        "BULK",
+        "EXPERIMENT",
+        "REDUNDANT",
+        "CRITICAL"
+      ]
+    },
+    "requirements": {
+      "type": "object"
+    }
+  }
+}
