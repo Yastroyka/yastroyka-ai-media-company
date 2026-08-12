@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "services/*"
+  - "workers/*"
+  - "packages/*"
+  - "integrations/*"
+  - "platforms/*"
+
+nodeVersion: 24.18.1
+engineStrict: true
+pmOnFail: error
