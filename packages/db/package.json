@@ -1,0 +1,23 @@
+{
+  "name": "@yastroyka/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "pnpm": "11.20.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:integration": "node --test tests/task-002.integration.test.ts"
+  },
+  "dependencies": {
+    "pg": "8.23.0",
+    "pg-hstore": "2.3.4",
+    "sequelize": "6.37.8",
+    "umzug": "3.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3"
+  }
+}
