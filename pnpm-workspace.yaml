@@ -1,0 +1,20 @@
+packages:
+  - 'apps/*'
+  - 'services/*'
+  - 'workers/*'
+  - 'packages/*'
+  - 'integrations/*'
+  - 'platforms/*'
+
+nodeVersion: 24.18.1
+engineStrict: true
+pmOnFail: error
+
+# Supply-chain security baseline.
+# Newly published dependency versions must age for 24 hours.
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+
+# Explicit temporary exception created during TASK-001.
+minimumReleaseAgeExclude:
+  - 'globals@17.11.0'

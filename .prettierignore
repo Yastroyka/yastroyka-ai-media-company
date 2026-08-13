@@ -1,0 +1,27 @@
+# Dependencies and generated output
+node_modules/
+.pnpm-store/
+.nuxt/
+.output/
+.nitro/
+dist/
+coverage/
+playwright-report/
+test-results/
+.cache/
+
+# Generated/package-manager files
+pnpm-lock.yaml
+
+# Existing Build Pack narrative/specification content.
+# Formatting policy for these areas will be handled separately.
+.ai/
+docs/
+evals/
+runbooks/
+specs/
+
+README.md
+CEO_START_HERE.md
+ENGINEERING_RULES.md
+BUILD_PACK_MANIFEST.json
