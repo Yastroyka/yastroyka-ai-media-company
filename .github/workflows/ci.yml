@@ -25,6 +25,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+        env:
+          POSTGRES_DB: yastroyka_r1_test
+          POSTGRES_USER: yastroyka_r1_app
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,3 +64,15 @@ jobs:
 
       - name: Run quality checks
         run: pnpm run quality:check
+
+      - name: Typecheck database package
+        run: pnpm --filter @yastroyka/db run typecheck
+
+      - name: Run database integration tests
+        run: pnpm --filter @yastroyka/db run test:integration
+        env:
+          YASTROYKA_DB_HOST: localhost
+          YASTROYKA_DB_PORT: '5432'
+          YASTROYKA_DB_NAME: yastroyka_r1_test
+          YASTROYKA_DB_USER: yastroyka_r1_app
+          YASTROYKA_DB_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
