@@ -53,8 +53,33 @@ test('denies a direct protected-branch push', () => {
   assert.match(denialId(bash('git push origin HEAD:main')), /protected-branch-push/);
 });
 
+test('denies a fully qualified protected-branch push', () => {
+  assert.match(denialId(bash('git push origin refs/heads/main')), /protected-branch-push/);
+  assert.match(denialId(bash('git push origin HEAD:refs/heads/main')), /protected-branch-push/);
+  assert.match(denialId(bash('git push origin "main"')), /protected-branch-push/);
+});
+
+test('denies a protected-branch push with git global options', () => {
+  assert.match(denialId(bash('git -C . push origin main')), /protected-branch-push/);
+});
+
+test('denies a protected-branch push through git.exe', () => {
+  assert.match(
+    denialId(bash('git.exe push origin HEAD:refs/heads/master')),
+    /protected-branch-push/,
+  );
+});
+
+test('allows pushing a protected local branch to a feature branch', () => {
+  assert.equal(bash('git push origin refs/heads/main:refs/heads/feature'), null);
+});
+
 test('denies direct pull request merge', () => {
   assert.match(denialId(bash('gh pr merge 4 --merge')), /direct-pr-merge/);
+  assert.match(
+    denialId(bash('gh --repo Yastroyka/yastroyka-ai-media-company pr merge 4')),
+    /direct-pr-merge/,
+  );
 });
 
 test('fails closed for invalid hook input', () => {

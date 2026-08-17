@@ -19,9 +19,13 @@ const bashDenials = [
   { id: 'git-force-push', pattern: /\bgit\s+push\b[^\n]*(?:--force|-f\b)/i },
   {
     id: 'protected-branch-push',
-    pattern: /\bgit\s+push\b[^\n]*(?:\s|:)(?:main|master)(?:\s|$)/i,
+    pattern:
+      /\bgit(?:\.exe)?\b[^\n;&|]*\bpush\b[^\n;&|]*[\s:"']\+?(?:refs\/heads\/)?(?:main|master)(?=$|[\s;&|"'])/i,
   },
-  { id: 'direct-pr-merge', pattern: /\bgh\s+pr\s+merge\b/i },
+  {
+    id: 'direct-pr-merge',
+    pattern: /\bgh(?:\.exe)?\b[^\n;&|]*\bpr\s+merge\b/i,
+  },
   { id: 'database-destructive', pattern: /\b(?:DROP\s+DATABASE|TRUNCATE\s+TABLE)\b/i },
   { id: 'infrastructure-destroy', pattern: /\bterraform\s+destroy\b/i },
   { id: 'cluster-delete', pattern: /\bkubectl\s+delete\b/i },
