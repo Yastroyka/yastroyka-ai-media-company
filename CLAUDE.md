@@ -14,9 +14,11 @@ Before implementing any task:
 
 4. Read the current task file in `.ai/tasks/`.
 
-5. Read only the ADRs, contracts, schemas, runbooks, and supporting documentation relevant to the task.
+5. Read `docs/agentic/AGENT_EXECUTION_CONTRACT.md`.
 
-6. Inspect the existing implementation before editing.
+6. Read only the ADRs, contracts, schemas, runbooks, and supporting documentation relevant to the task.
+
+7. Inspect the existing implementation before editing.
 
 The detailed repository-wide AI engineering rules are defined in `AGENTS.md` and apply to Claude Code in full.
 

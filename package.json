@@ -20,8 +20,10 @@
   },
   "scripts": {
     "toolchain:check": "node scripts/doctor.mjs",
+    "codex:smoke": "node scripts/codex-smoke.mjs",
+    "test:codex-hooks": "node --test .codex/hooks/policy.test.mjs",
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
-    "quality:check": "pnpm run toolchain:check && pnpm run lint && pnpm run format:check"
+    "quality:check": "pnpm run toolchain:check && pnpm run codex:smoke && pnpm run test:codex-hooks && pnpm run lint && pnpm run format:check"
   }
 }
