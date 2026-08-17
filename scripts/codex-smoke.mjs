@@ -45,31 +45,19 @@ requireMatch(
   /571d58642a10f4d8d7ce97882a615b6feeba7887/,
   'Source baseline marker is missing.',
 );
-requireMatch(
-  config,
-  /approval_policy\s*=\s*"on-request"/,
-  'Approval policy must be on-request.',
-);
+requireMatch(config, /approval_policy\s*=\s*"on-request"/, 'Approval policy must be on-request.');
 requireMatch(
   config,
   /default_permissions\s*=\s*"yastroyka-repo"/,
   'YASTROYKA permission profile is not selected.',
 );
-requireMatch(
-  config,
-  /extends\s*=\s*":workspace"/,
-  'Permission profile must extend :workspace.',
-);
+requireMatch(config, /extends\s*=\s*":workspace"/, 'Permission profile must extend :workspace.');
 requireMatch(
   config,
   /\[permissions\.yastroyka-repo\.network\]\s*enabled\s*=\s*false/s,
   'Project command network must be disabled.',
 );
-requireMatch(
-  config,
-  /^"\.env"\s*=\s*"deny"$/m,
-  'Root .env access must be denied.',
-);
+requireMatch(config, /^"\.env"\s*=\s*"deny"$/m, 'Root .env access must be denied.');
 requireMatch(
   config,
   /\[mcp_servers\.yastroyka_owned\][\s\S]*?enabled\s*=\s*false/,
