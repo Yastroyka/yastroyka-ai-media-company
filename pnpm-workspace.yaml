@@ -18,3 +18,10 @@ minimumReleaseAgeStrict: true
 # Explicit temporary exception created during TASK-001.
 minimumReleaseAgeExclude:
   - 'globals@17.11.0'
+
+# TASK-005 dependencies expose optional install scripts. They are not required by the
+# Temporal workflow package, so keep them explicitly blocked instead of granting a
+# repository-wide supply-chain exception.
+allowBuilds:
+  '@swc/core': false
+  protobufjs: false

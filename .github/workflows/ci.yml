@@ -77,6 +77,12 @@ jobs:
       - name: Run orchestrator tests
         run: pnpm --filter @yastroyka/orchestrator run test
 
+      - name: Typecheck Temporal workflows
+        run: pnpm --filter @yastroyka/temporal-workflows run typecheck
+
+      - name: Run Temporal workflow tests
+        run: pnpm --filter @yastroyka/temporal-workflows run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
