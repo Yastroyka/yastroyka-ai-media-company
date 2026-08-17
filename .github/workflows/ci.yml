@@ -65,6 +65,12 @@ jobs:
       - name: Run quality checks
         run: pnpm run quality:check
 
+      - name: Typecheck authorization package
+        run: pnpm --filter @yastroyka/auth run typecheck
+
+      - name: Run authorization tests
+        run: pnpm --filter @yastroyka/auth run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
