@@ -1,0 +1,19 @@
+{
+  "description": "YASTROYKA repository guardrails for Codex development sessions.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-tool-use.mjs\"",
+            "commandWindows": "powershell -NoProfile -NonInteractive -Command \"& node (Join-Path (git rev-parse --show-toplevel) '.codex/hooks/pre-tool-use.mjs')\"",
+            "timeout": 5,
+            "statusMessage": "Checking YASTROYKA repository policy"
+          }
+        ]
+      }
+    ]
+  }
+}

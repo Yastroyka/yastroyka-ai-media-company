@@ -42,11 +42,13 @@ Before implementing a task:
 
 3. Read the current `.ai/tasks/TASK-XXX-*.md` file.
 
-4. Read only the ADRs, contracts, schemas, runbooks, and documentation relevant to that task.
+4. Read `docs/agentic/AGENT_EXECUTION_CONTRACT.md`.
 
-5. Inspect the existing implementation before editing.
+5. Read only the ADRs, contracts, schemas, runbooks, and documentation relevant to that task.
 
-6. State any material ambiguity before making an irreversible architectural choice.
+6. Inspect the existing implementation before editing.
+
+7. State any material ambiguity before making an irreversible architectural choice.
 
 Do not load unrelated repository documentation merely to increase context.
 

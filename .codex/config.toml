@@ -1,0 +1,36 @@
+# YASTROYKA project-scoped Codex baseline.
+# Project configuration is loaded only after the repository is trusted.
+
+approval_policy = "on-request"
+default_permissions = "yastroyka-repo"
+
+[permissions.yastroyka-repo]
+description = "Reversible repository work with no network or secret-file access."
+extends = ":workspace"
+
+[permissions.yastroyka-repo.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"*.pem" = "deny"
+"*.key" = "deny"
+"*.p12" = "deny"
+"*.pfx" = "deny"
+"**/*.pem" = "deny"
+"**/*.key" = "deny"
+"**/*.p12" = "deny"
+"**/*.pfx" = "deny"
+
+[permissions.yastroyka-repo.network]
+enabled = false
+
+# Placeholder only. It must remain disabled until an approved YASTROYKA-owned
+# MCP implementation, security review, and tool-level approval policy exist.
+[mcp_servers.yastroyka_owned]
+command = "node"
+args = ["integrations/mcp/dist/server.mjs"]
+enabled = false
+required = false
+startup_timeout_sec = 10
+tool_timeout_sec = 60
