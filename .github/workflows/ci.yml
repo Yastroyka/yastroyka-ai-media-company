@@ -71,6 +71,12 @@ jobs:
       - name: Run authorization tests
         run: pnpm --filter @yastroyka/auth run test
 
+      - name: Typecheck orchestrator service
+        run: pnpm --filter @yastroyka/orchestrator run typecheck
+
+      - name: Run orchestrator tests
+        run: pnpm --filter @yastroyka/orchestrator run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
