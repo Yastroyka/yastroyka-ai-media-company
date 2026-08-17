@@ -10,3 +10,5 @@ export {
   type OutboxEventInput,
   type ProjectInput,
 } from './project-with-outbox.ts';
+
+export { createPostgresAuthorizationAuditSink } from './postgres-authorization-audit-sink.ts';
