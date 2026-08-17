@@ -6,6 +6,11 @@ import {
   up as initialCanonicalSchemaUp,
 } from '../migrations/0001-initial-canonical-schema.ts';
 
+import {
+  down as authorizationAuditEventsDown,
+  up as authorizationAuditEventsUp,
+} from '../migrations/0002-authorization-audit-events.ts';
+
 export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
   return new Umzug<QueryInterface>({
     migrations: [
@@ -13,6 +18,11 @@ export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
         name: '0001-initial-canonical-schema',
         up: initialCanonicalSchemaUp,
         down: initialCanonicalSchemaDown,
+      },
+      {
+        name: '0002-authorization-audit-events',
+        up: authorizationAuditEventsUp,
+        down: authorizationAuditEventsDown,
       },
     ],
     context: database.getQueryInterface(),

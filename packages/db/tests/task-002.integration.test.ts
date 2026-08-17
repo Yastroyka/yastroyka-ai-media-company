@@ -42,7 +42,7 @@ test('TASK-002 canonical DB + transactional outbox', async (t) => {
         await migrator.down();
       }
 
-      const firstUp = await migrator.up();
+      const firstUp = await migrator.up({ migrations: ['0001-initial-canonical-schema'] });
 
       assert.deepEqual(
         firstUp.map((migration) => migration.name),
@@ -104,7 +104,7 @@ test('TASK-002 canonical DB + transactional outbox', async (t) => {
         ['SequelizeMeta'],
       );
 
-      const secondUp = await migrator.up();
+      const secondUp = await migrator.up({ migrations: ['0001-initial-canonical-schema'] });
 
       assert.deepEqual(
         secondUp.map((migration) => migration.name),
@@ -113,7 +113,7 @@ test('TASK-002 canonical DB + transactional outbox', async (t) => {
 
       assert.deepEqual(
         (await migrator.pending()).map((migration) => migration.name),
-        [],
+        ['0002-authorization-audit-events'],
       );
     });
 

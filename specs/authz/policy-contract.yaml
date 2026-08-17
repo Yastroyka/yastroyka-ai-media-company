@@ -1,20 +1,91 @@
-version: 1
+version: 2
+
 principles:
   default_deny: true
   least_privilege: true
+
 risk_classes:
   R0: { description: read-only low-risk }
   R1: { description: reversible staging action }
   R2: { description: production write/reversible external action }
   R3: { description: irreversible/high-impact action }
+
 actors:
   claude_orchestrator:
-    default_scopes: [commerce:read, model_exchange:route, content:draft, analytics:read]
+    default_scopes:
+      - commerce:read
+      - model_exchange:route
+      - content:draft
+      - analytics:read
+
   codex_developer:
-    default_scopes: [repo:branch_write, ci:run]
-    denied_scopes: [production:write, secrets:read_raw]
+    default_scopes:
+      - repo:branch_write
+      - ci:run
+    denied_scopes:
+      - production:write
+      - secrets:read_raw
+
+permissions:
+  - id: commerce-read
+    resource: commerce
+    action: read
+    required_scope: commerce:read
+    risk_class: R0
+
+  - id: model-exchange-route
+    resource: model_exchange
+    action: route
+    required_scope: model_exchange:route
+    risk_class: R0
+
+  - id: content-draft
+    resource: content
+    action: draft
+    required_scope: content:draft
+    risk_class: R1
+
+  - id: analytics-read
+    resource: analytics
+    action: read
+    required_scope: analytics:read
+    risk_class: R0
+
+  - id: repo-branch-write
+    resource: repo
+    action: branch_write
+    required_scope: repo:branch_write
+    risk_class: R1
+
+  - id: ci-run
+    resource: ci
+    action: run
+    required_scope: ci:run
+    risk_class: R1
+
+  - id: production-catalog-price-write
+    resource: production_catalog
+    action: price_write
+    required_scope: production:write
+    risk_class: R2
+
+  - id: production-catalog-stock-write
+    resource: production_catalog
+    action: stock_write
+    required_scope: production:write
+    risk_class: R2
+
+  - id: production-catalog-product-master-write
+    resource: production_catalog
+    action: product_master_write
+    required_scope: production:write
+    risk_class: R2
+
 rules:
   - id: commerce-production-read-only
     resource: production_catalog
-    actions: [price_write, stock_write, product_master_write]
+    actions:
+      - price_write
+      - stock_write
+      - product_master_write
     effect: deny
