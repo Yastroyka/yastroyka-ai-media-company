@@ -9,10 +9,13 @@ import type {
 export interface GitHubDraftPullRequestTransportResult {
   readonly number: number;
   readonly headSha: string;
+  readonly headBranch: string;
+  readonly baseBranch: string;
   readonly draft: boolean;
 }
 
 export interface GitHubCiTransportResult {
+  readonly prNumber: number;
   readonly headSha: string;
   readonly status: 'queued' | 'in_progress' | 'completed';
   readonly conclusion: 'success' | 'failure' | null;
@@ -23,7 +26,7 @@ export interface GitHubEngineeringTransport {
   upsertDraftPullRequest(
     input: EngineeringDraftPullRequestInput,
   ): Promise<GitHubDraftPullRequestTransportResult>;
-  waitForCommitCi(headSha: string): Promise<GitHubCiTransportResult>;
+  waitForPullRequestCi(prNumber: number, headSha: string): Promise<GitHubCiTransportResult>;
 }
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -64,6 +67,12 @@ export class GitHubEngineeringAdapter implements EngineeringGitHubPort {
         'GitHub transport returned a non-Draft PR; autonomous publication fails closed.',
       );
     }
+    if (result.headBranch !== input.branch || result.baseBranch !== input.baseBranch) {
+      throw new Error('GitHub transport returned Draft PR evidence for unexpected branches.');
+    }
+    if (result.headSha !== input.headSha) {
+      throw new Error('GitHub transport returned Draft PR evidence for a different head SHA.');
+    }
 
     return {
       number: result.number,
@@ -77,13 +86,17 @@ export class GitHubEngineeringAdapter implements EngineeringGitHubPort {
     requirePositiveInteger(prNumber, 'prNumber');
     requireSha(expectedHeadSha, 'expectedHeadSha');
 
-    const result = await this.#transport.waitForCommitCi(expectedHeadSha);
+    const result = await this.#transport.waitForPullRequestCi(prNumber, expectedHeadSha);
+    requirePositiveInteger(result.prNumber, 'ci.prNumber');
     requireSha(result.headSha, 'ci.headSha');
+    if (result.prNumber !== prNumber) {
+      throw new Error('GitHub CI transport returned evidence for a different pull request.');
+    }
     if (result.headSha !== expectedHeadSha) {
       throw new Error('GitHub CI transport returned evidence for a different head SHA.');
     }
     if (result.status !== 'completed' || result.conclusion === null) {
-      throw new Error('GitHub CI transport returned non-terminal evidence after waitForCommitCi.');
+      throw new Error('GitHub CI transport returned non-terminal evidence after waitForPullRequestCi.');
     }
 
     return {
