@@ -60,7 +60,9 @@ export class GitHubEngineeringAdapter implements EngineeringGitHubPort {
     requirePositiveInteger(result.number, 'pullRequest.number');
     requireSha(result.headSha, 'pullRequest.headSha');
     if (!result.draft) {
-      throw new Error('GitHub transport returned a non-Draft PR; autonomous publication fails closed.');
+      throw new Error(
+        'GitHub transport returned a non-Draft PR; autonomous publication fails closed.',
+      );
     }
 
     return {
