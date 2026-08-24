@@ -224,7 +224,10 @@ test('authorization denial fails closed before the denied mutation', async () =>
 
   assert.equal(result.state.status, 'blocked');
   assert.equal(result.state.decisionState, 'BLOCKED');
-  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during feature branch push.');
+  assert.equal(
+    result.state.blockerReason,
+    'Engineering runner failed closed during feature branch push.',
+  );
   assert.deepEqual(harness.pushedHeads, []);
   assert.deepEqual(harness.draftHeads, []);
   assert.deepEqual(harness.ciHeads, []);
