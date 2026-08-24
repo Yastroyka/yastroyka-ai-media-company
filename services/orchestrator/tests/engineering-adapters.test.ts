@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 
 import {
   GitHubEngineeringAdapter,
@@ -49,7 +49,7 @@ class FakeCommandExecutor implements EngineeringCommandExecutor {
   }
 }
 
-async function createWorktreeHarness(t: test.TestContext) {
+async function createWorktreeHarness(t: TestContext) {
   const repoRoot = await mkdtemp(join(tmpdir(), 'yastroyka-runner-'));
   const worktreeRoot = join(repoRoot, 'worktrees');
   const executor = new FakeCommandExecutor();
