@@ -10,10 +10,7 @@ export type EngineeringRunStatus =
   | 'ready_for_owner_decision'
   | 'blocked';
 
-export type EngineeringDecisionState =
-  | 'PENDING'
-  | 'READY_FOR_OWNER_DECISION'
-  | 'BLOCKED';
+export type EngineeringDecisionState = 'PENDING' | 'READY_FOR_OWNER_DECISION' | 'BLOCKED';
 
 export type EngineeringCheckConclusion = 'passed' | 'failed' | 'not_run';
 
@@ -274,10 +271,7 @@ export class EngineeringRunStateMachine {
 
       case 'validating':
         if (event.type === 'VALIDATION_PASSED') {
-          const validationEvidence = validatePassedChecks(
-            this.#state.requiredChecks,
-            event.checks,
-          );
+          const validationEvidence = validatePassedChecks(this.#state.requiredChecks, event.checks);
           return this.#replace({ status: 'reviewing', validationEvidence });
         }
 
@@ -331,9 +325,7 @@ export class EngineeringRunStateMachine {
 
         if (event.type === 'CI_FAILED') {
           requireReason(event.reason);
-          return this.#retryOrBlock(
-            `CI failed for exact head ${event.headSha}: ${event.reason}`,
-          );
+          return this.#retryOrBlock(`CI failed for exact head ${event.headSha}: ${event.reason}`);
         }
         break;
 
