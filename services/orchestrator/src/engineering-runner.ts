@@ -3,6 +3,7 @@ import {
   assertAutonomousEngineeringActionAllowed,
   type AutonomousEngineeringAction,
   type EngineeringCheckEvidence,
+  type EngineeringModelSelection,
   type EngineeringRiskClass,
   type EngineeringRunState,
   type EngineeringTaskEnvelope,
@@ -32,11 +33,35 @@ export interface EngineeringWorkspacePort {
   dispose(workspace: EngineeringWorkspace): Promise<void>;
 }
 
+export interface EngineeringModelCandidate {
+  readonly provider: string;
+  readonly model: string;
+  readonly revision: string | null;
+}
+
+export interface EngineeringModelRoutingDecision {
+  readonly winner: EngineeringModelCandidate;
+  readonly fallbacks: readonly EngineeringModelCandidate[];
+  readonly whyThisModel: string;
+}
+
+export interface EngineeringModelRoutingPort {
+  route(envelope: EngineeringTaskEnvelope): Promise<EngineeringModelRoutingDecision>;
+}
+
+export class EngineeringProviderUnavailableError extends Error {
+  constructor() {
+    super('Engineering model provider is unavailable.');
+    this.name = 'EngineeringProviderUnavailableError';
+  }
+}
+
 export interface EngineeringWorkerInput {
   readonly envelope: EngineeringTaskEnvelope;
   readonly workspace: EngineeringWorkspace;
   readonly attempt: number;
   readonly correctionReason: string | null;
+  readonly model: EngineeringModelCandidate;
 }
 
 export interface EngineeringWorkerPort {
@@ -88,13 +113,48 @@ export interface EngineeringGitHubPort {
   waitForCi(prNumber: number, expectedHeadSha: string): Promise<EngineeringCiResult>;
 }
 
+export type EngineeringEvidenceEventType =
+  | 'model_selected'
+  | 'model_fallback'
+  | 'workspace_prepared'
+  | 'implementation_completed'
+  | 'validation_failed'
+  | 'validation_passed'
+  | 'review_passed'
+  | 'feature_branch_pushed'
+  | 'draft_pr_published'
+  | 'ci_failed'
+  | 'ci_passed'
+  | 'blocked';
+
+export interface EngineeringEvidencePayload {
+  readonly state: EngineeringRunState;
+  readonly headSha: string | null;
+  readonly activeModel: EngineeringModelCandidate | null;
+}
+
+export interface EngineeringRunEvidenceRecord {
+  readonly runId: string;
+  readonly sequence: number;
+  readonly eventType: EngineeringEvidenceEventType;
+  readonly payload: EngineeringEvidencePayload;
+  readonly recordedAt: string;
+}
+
+export interface EngineeringRunEvidencePort {
+  record(record: EngineeringRunEvidenceRecord): Promise<void>;
+}
+
 export interface EngineeringRunnerDependencies {
   readonly authorization: EngineeringAuthorizationPort;
   readonly workspace: EngineeringWorkspacePort;
+  readonly modelRouting: EngineeringModelRoutingPort;
   readonly worker: EngineeringWorkerPort;
   readonly validation: EngineeringValidationPort;
   readonly review: EngineeringReviewPort;
   readonly github: EngineeringGitHubPort;
+  readonly evidence: EngineeringRunEvidencePort;
+  readonly now?: () => Date;
 }
 
 export interface EngineeringRunnerResult {
@@ -107,6 +167,12 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 function requireSha(value: string, field: string): void {
   if (!SHA_PATTERN.test(value)) {
     throw new Error(`${field} must be an exact 40-character lowercase Git SHA.`);
+  }
+}
+
+function requireNonEmpty(value: string, field: string): void {
+  if (value.trim().length === 0) {
+    throw new Error(`${field} must be non-empty.`);
   }
 }
 
@@ -155,33 +221,153 @@ function validationFailureReason(
   return null;
 }
 
+function validateCandidate(
+  candidate: EngineeringModelCandidate,
+  field: string,
+): EngineeringModelCandidate {
+  requireNonEmpty(candidate.provider, `${field}.provider`);
+  requireNonEmpty(candidate.model, `${field}.model`);
+  if (candidate.revision !== null) {
+    requireNonEmpty(candidate.revision, `${field}.revision`);
+  }
+  return { ...candidate };
+}
+
+function candidateKey(candidate: EngineeringModelCandidate): string {
+  return `${candidate.provider}\u0000${candidate.model}\u0000${candidate.revision ?? ''}`;
+}
+
+function validateRoutingDecision(
+  decision: EngineeringModelRoutingDecision,
+): EngineeringModelRoutingDecision {
+  requireNonEmpty(decision.whyThisModel, 'routingDecision.whyThisModel');
+  const winner = validateCandidate(decision.winner, 'routingDecision.winner');
+  const seen = new Set<string>([candidateKey(winner)]);
+  const fallbacks = decision.fallbacks.map((candidate, index) => {
+    const validated = validateCandidate(candidate, `routingDecision.fallbacks[${String(index)}]`);
+    const key = candidateKey(validated);
+    if (seen.has(key)) {
+      throw new Error('Model routing decision contains a duplicate candidate identity.');
+    }
+    seen.add(key);
+    return validated;
+  });
+
+  return {
+    winner,
+    fallbacks,
+    whyThisModel: decision.whyThisModel,
+  };
+}
+
+function selectionFromDecision(decision: EngineeringModelRoutingDecision): EngineeringModelSelection {
+  return {
+    provider: decision.winner.provider,
+    model: decision.winner.model,
+    whyThisModel: decision.whyThisModel,
+    fallbackProviders: [...new Set(decision.fallbacks.map((candidate) => candidate.provider))],
+  };
+}
+
+function decisionFromApprovedSelection(
+  selection: EngineeringModelSelection,
+): EngineeringModelRoutingDecision {
+  return {
+    winner: {
+      provider: selection.provider,
+      model: selection.model,
+      revision: null,
+    },
+    fallbacks: [],
+    whyThisModel: selection.whyThisModel,
+  };
+}
+
 export class EngineeringRunner {
   readonly #dependencies: EngineeringRunnerDependencies;
+  readonly #now: () => Date;
+  #evidenceSequence = 0;
 
   constructor(dependencies: EngineeringRunnerDependencies) {
     this.#dependencies = dependencies;
+    this.#now = dependencies.now ?? (() => new Date());
   }
 
   async run(envelope: EngineeringTaskEnvelope): Promise<EngineeringRunnerResult> {
     const machine = new EngineeringRunStateMachine(envelope);
     let workspace: EngineeringWorkspace | null = null;
     let correctionReason: string | null = null;
-    let stage = 'workspace preparation';
+    let currentHeadSha: string | null = null;
+    let activeModel: EngineeringModelCandidate | null = null;
+    let stage = 'model routing';
+    const unavailableModels = new Set<string>();
 
     try {
+      const routingDecision =
+        envelope.modelSelection === null
+          ? validateRoutingDecision(await this.#dependencies.modelRouting.route(envelope))
+          : validateRoutingDecision(decisionFromApprovedSelection(envelope.modelSelection));
+
+      if (envelope.modelSelection === null) {
+        machine.apply({ type: 'MODEL_SELECTED', selection: selectionFromDecision(routingDecision) });
+      }
+      await this.#recordEvidence(machine.state, 'model_selected', currentHeadSha, routingDecision.winner);
+
+      stage = 'workspace preparation';
       await this.#authorize('create_feature_branch', envelope);
       workspace = requireWorkspace(await this.#dependencies.workspace.prepare(envelope), envelope);
       machine.apply({ type: 'START' });
+      await this.#recordEvidence(machine.state, 'workspace_prepared', currentHeadSha, null);
+
+      const candidates = [routingDecision.winner, ...routingDecision.fallbacks];
 
       while (machine.state.status === 'executing') {
         stage = 'worker implementation';
-        await this.#dependencies.worker.implement({
-          envelope,
-          workspace,
-          attempt: machine.state.attempt,
-          correctionReason,
-        });
+        activeModel = null;
+
+        for (const candidate of candidates) {
+          if (unavailableModels.has(candidateKey(candidate))) {
+            continue;
+          }
+
+          try {
+            await this.#dependencies.worker.implement({
+              envelope,
+              workspace,
+              attempt: machine.state.attempt,
+              correctionReason,
+              model: candidate,
+            });
+            activeModel = candidate;
+            break;
+          } catch (error) {
+            if (!(error instanceof EngineeringProviderUnavailableError)) {
+              throw error;
+            }
+
+            unavailableModels.add(candidateKey(candidate));
+            await this.#recordEvidence(machine.state, 'model_fallback', currentHeadSha, candidate);
+          }
+        }
+
+        if (activeModel === null) {
+          machine.apply({
+            type: 'BLOCK',
+            reason: 'No eligible engineering model remained available for worker execution.',
+          });
+          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, null);
+          break;
+        }
+
+        currentHeadSha = await this.#dependencies.workspace.readHead(workspace);
+        requireSha(currentHeadSha, 'implementationHeadSha');
         machine.apply({ type: 'IMPLEMENTATION_READY' });
+        await this.#recordEvidence(
+          machine.state,
+          'implementation_completed',
+          currentHeadSha,
+          activeModel,
+        );
 
         stage = 'validation';
         await this.#authorize('run_validation', envelope);
@@ -193,11 +379,13 @@ export class EngineeringRunner {
         );
         const headAfterValidation = await this.#dependencies.workspace.readHead(workspace);
         requireSha(headAfterValidation, 'headAfterValidation');
+        currentHeadSha = headAfterValidation;
         if (headAfterValidation !== headBeforeValidation) {
           machine.apply({
             type: 'BLOCK',
             reason: 'Engineering workspace HEAD changed during validation.',
           });
+          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
 
@@ -205,6 +393,7 @@ export class EngineeringRunner {
         if (validationFailure !== null) {
           const state = machine.apply({ type: 'VALIDATION_FAILED', reason: validationFailure });
           correctionReason = validationFailure;
+          await this.#recordEvidence(state, 'validation_failed', currentHeadSha, activeModel);
           if (state.status === 'blocked') {
             break;
           }
@@ -212,6 +401,7 @@ export class EngineeringRunner {
         }
 
         machine.apply({ type: 'VALIDATION_PASSED', checks });
+        await this.#recordEvidence(machine.state, 'validation_passed', currentHeadSha, activeModel);
 
         stage = 'independent review';
         const review = await this.#dependencies.review.review(workspace, headAfterValidation);
@@ -220,23 +410,28 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: 'Independent engineering review reported blocking findings.',
           });
+          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
         const headAfterReview = await this.#dependencies.workspace.readHead(workspace);
         requireSha(headAfterReview, 'headAfterReview');
+        currentHeadSha = headAfterReview;
         if (headAfterReview !== headAfterValidation) {
           machine.apply({
             type: 'BLOCK',
             reason: 'Engineering workspace HEAD changed during independent review.',
           });
+          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
         machine.apply({ type: 'REVIEW_PASSED' });
+        await this.#recordEvidence(machine.state, 'review_passed', currentHeadSha, activeModel);
 
         stage = 'feature branch push';
         const headSha = headAfterReview;
         await this.#authorize('push_feature_branch', envelope);
         await this.#dependencies.workspace.pushFeatureBranch(workspace, headSha);
+        await this.#recordEvidence(machine.state, 'feature_branch_pushed', headSha, activeModel);
 
         stage = 'Draft PR publication';
         await this.#authorize('create_or_update_draft_pr', envelope);
@@ -253,6 +448,7 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: `Draft PR head ${pullRequest.headSha} does not match pushed head ${headSha}.`,
           });
+          await this.#recordEvidence(machine.state, 'blocked', headSha, activeModel);
           break;
         }
 
@@ -261,14 +457,17 @@ export class EngineeringRunner {
           prNumber: pullRequest.number,
           headSha: pullRequest.headSha,
         });
+        await this.#recordEvidence(machine.state, 'draft_pr_published', headSha, activeModel);
 
         stage = 'GitHub CI observation';
         await this.#authorize('observe_ci', envelope);
         const ci = await this.#dependencies.github.waitForCi(pullRequest.number, headSha);
         requireSha(ci.headSha, 'ci.headSha');
+        currentHeadSha = ci.headSha;
 
         if (ci.conclusion === 'success') {
           machine.apply({ type: 'CI_PASSED', headSha: ci.headSha });
+          await this.#recordEvidence(machine.state, 'ci_passed', ci.headSha, activeModel);
           break;
         }
 
@@ -279,6 +478,7 @@ export class EngineeringRunner {
           reason: ciFailureReason,
         });
         correctionReason = ciFailureReason;
+        await this.#recordEvidence(state, 'ci_failed', ci.headSha, activeModel);
         if (state.status === 'blocked') {
           break;
         }
@@ -293,12 +493,38 @@ export class EngineeringRunner {
           reason: `Engineering runner failed closed during ${stage}.`,
         });
       }
+
+      try {
+        await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
+      } catch {
+        // Evidence persistence failure is itself fail-closed; do not mask the blocked run state.
+      }
     }
 
     return {
       state: machine.state,
       workspace,
     };
+  }
+
+  async #recordEvidence(
+    state: EngineeringRunState,
+    eventType: EngineeringEvidenceEventType,
+    headSha: string | null,
+    activeModel: EngineeringModelCandidate | null,
+  ): Promise<void> {
+    this.#evidenceSequence += 1;
+    await this.#dependencies.evidence.record({
+      runId: state.runId,
+      sequence: this.#evidenceSequence,
+      eventType,
+      payload: {
+        state,
+        headSha,
+        activeModel: activeModel === null ? null : { ...activeModel },
+      },
+      recordedAt: this.#now().toISOString(),
+    });
   }
 
   async #authorize(
