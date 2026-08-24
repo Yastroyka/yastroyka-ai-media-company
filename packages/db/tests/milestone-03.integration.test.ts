@@ -10,10 +10,8 @@ process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
 
 const { createDatabaseConnection } = await import('../src/connection.ts');
 const { createMigrator } = await import('../src/migrator.ts');
-const {
-  EngineeringEvidenceConflictError,
-  createPostgresEngineeringEvidenceStore,
-} = await import('../src/postgres-engineering-evidence-store.ts');
+const { EngineeringEvidenceConflictError, createPostgresEngineeringEvidenceStore } =
+  await import('../src/postgres-engineering-evidence-store.ts');
 
 function evidence(sequence: number, eventType: string, status: string) {
   return {
@@ -25,7 +23,8 @@ function evidence(sequence: number, eventType: string, status: string) {
         runId: 'm03-evidence-run-001',
         taskId: 'MILESTONE-03',
         status,
-        decisionState: status === 'ready_for_owner_decision' ? 'READY_FOR_OWNER_DECISION' : 'PENDING',
+        decisionState:
+          status === 'ready_for_owner_decision' ? 'READY_FOR_OWNER_DECISION' : 'PENDING',
         baseSha: 'a8cc2df1ce99e140f7d1e2ce093ff0a57bcde453',
         branch: 'milestone-03/model-routing-evidence',
       },
@@ -146,7 +145,10 @@ test('MILESTONE-03 PostgreSQL engineering evidence is append-only and sanitized'
       );
 
       const records = await store.findByRunId('m03-evidence-run-001');
-      assert.equal(records.some((record) => record.sequence === 4), false);
+      assert.equal(
+        records.some((record) => record.sequence === 4),
+        false,
+      );
       assert.equal(JSON.stringify(records).includes('must-never-persist'), false);
     });
 
