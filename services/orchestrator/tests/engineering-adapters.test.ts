@@ -40,11 +40,15 @@ function envelope(overrides: Partial<EngineeringTaskEnvelope> = {}): Engineering
 class FakeGitCommandExecutor implements EngineeringGitCommandExecutor {
   readonly requests: EngineeringGitCommandRequest[] = [];
   headSha = BASE_SHA;
+  statusOutput = '';
 
   async run(request: EngineeringGitCommandRequest): Promise<EngineeringGitCommandResult> {
     this.requests.push(request);
     if (request.args[0] === 'rev-parse') {
       return { exitCode: 0, stdout: `${this.headSha}\n`, stderr: '' };
+    }
+    if (request.args[0] === 'status') {
+      return { exitCode: 0, stdout: this.statusOutput, stderr: '' };
     }
     return { exitCode: 0, stdout: '', stderr: '' };
   }
@@ -81,17 +85,35 @@ test('Git worktree adapter creates an isolated branch from the exact base SHA', 
   assert.equal(executor.requests[3]?.args[0], 'rev-parse');
 });
 
-test('feature push is exact-head, feature-only, and never force pushes', async (t) => {
+test('feature push is exact-head, clean, feature-only, and never force pushes', async (t) => {
   const { adapter, executor } = await createWorktreeHarness(t);
   const workspace = await adapter.prepare(envelope());
   executor.headSha = HEAD_SHA;
 
   await adapter.pushFeatureBranch(workspace, HEAD_SHA);
 
+  const status = executor.requests.find((request) => request.args[0] === 'status');
+  assert.deepEqual(status?.args, ['status', '--porcelain=v1', '--untracked-files=all']);
   const push = executor.requests.find((request) => request.args[0] === 'push');
   assert.deepEqual(push?.args, ['push', 'origin', `HEAD:refs/heads/${workspace.branch}`]);
   assert.equal(push?.args.includes('--force'), false);
   assert.equal(push?.args.includes('--force-with-lease'), false);
+});
+
+test('dirty worktree is rejected before feature branch push', async (t) => {
+  const { adapter, executor } = await createWorktreeHarness(t);
+  const workspace = await adapter.prepare(envelope());
+  executor.headSha = HEAD_SHA;
+  executor.statusOutput = ' M services/orchestrator/src/engineering-runner.ts\n';
+
+  await assert.rejects(
+    () => adapter.pushFeatureBranch(workspace, HEAD_SHA),
+    /must be clean before feature branch push/u,
+  );
+  assert.equal(
+    executor.requests.some((request) => request.args[0] === 'push'),
+    false,
+  );
 });
 
 test('worktree cleanup removes only the isolated worktree and preserves the branch', async (t) => {
@@ -150,6 +172,23 @@ test('worktree adapter rejects a forged workspace even when its path is containe
   assert.equal(
     executor.requests.some((request) => request.args[0] === 'push'),
     false,
+  );
+});
+
+test('failed initial HEAD verification clears prepared workspace identity', async (t) => {
+  const { adapter, executor, worktreeRoot } = await createWorktreeHarness(t);
+  executor.headSha = OTHER_HEAD;
+
+  await assert.rejects(() => adapter.prepare(envelope()), /exact approved base SHA/u);
+
+  const rejectedWorkspace: EngineeringWorkspace = {
+    path: join(worktreeRoot, 'adapter-test-001'),
+    branch: 'milestone-03/adapter-test',
+    baseSha: BASE_SHA,
+  };
+  await assert.rejects(
+    () => adapter.pushFeatureBranch(rejectedWorkspace, OTHER_HEAD),
+    /not prepared by this adapter instance/u,
   );
 });
 
