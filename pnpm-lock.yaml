@@ -40,6 +40,12 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
 
+  packages/commerce-sdk:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
   packages/db:
     dependencies:
       '@yastroyka/auth':
@@ -63,6 +69,16 @@ importers:
         version: 24.13.3
 
   services/orchestrator:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
+  services/commerce-bridge:
+    dependencies:
+      '@yastroyka/commerce-sdk':
+        specifier: workspace:*
+        version: link:../../packages/commerce-sdk
     devDependencies:
       '@types/node':
         specifier: 24.13.3

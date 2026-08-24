@@ -16,8 +16,20 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - name: offerId
+          in: query
+          required: true
+          description: Explicit seller offer; products and seller offers are never collapsed.
+          schema: { type: string }
       responses:
-        "200": { description: Product Content Pack }
+        "200":
+          description: Fresh Product Content Pack
+          content:
+            application/json:
+              schema:
+                $ref: ../commerce/product-content-pack.schema.json
+        "409": { description: Price or stock snapshot must be refreshed }
+        "422": { description: Content-pack construction blocked by a commerce invariant }
   /v1/model-exchange/route:
     post:
       operationId: routeModel
