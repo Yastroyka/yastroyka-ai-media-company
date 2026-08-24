@@ -260,7 +260,9 @@ function validateRoutingDecision(
   };
 }
 
-function selectionFromDecision(decision: EngineeringModelRoutingDecision): EngineeringModelSelection {
+function selectionFromDecision(
+  decision: EngineeringModelRoutingDecision,
+): EngineeringModelSelection {
   return {
     provider: decision.winner.provider,
     model: decision.winner.model,
@@ -330,7 +332,10 @@ export class EngineeringRunner {
           : validateRoutingDecision(decisionFromApprovedSelection(envelope.modelSelection));
 
       if (envelope.modelSelection === null) {
-        machine.apply({ type: 'MODEL_SELECTED', selection: selectionFromDecision(routingDecision) });
+        machine.apply({
+          type: 'MODEL_SELECTED',
+          selection: selectionFromDecision(routingDecision),
+        });
       }
       await recordEvidence(machine.state, 'model_selected', currentHeadSha, routingDecision.winner);
 
