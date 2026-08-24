@@ -179,10 +179,7 @@ class FakeGitHubTransport implements GitHubEngineeringTransport {
     return this.draftResult;
   }
 
-  async waitForPullRequestCi(
-    prNumber: number,
-    headSha: string,
-  ): Promise<GitHubCiTransportResult> {
+  async waitForPullRequestCi(prNumber: number, headSha: string): Promise<GitHubCiTransportResult> {
     this.waitedPrNumber = prNumber;
     this.waitedHead = headSha;
     return this.ciResult;
