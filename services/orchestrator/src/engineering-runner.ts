@@ -286,7 +286,6 @@ function decisionFromApprovedSelection(
 export class EngineeringRunner {
   readonly #dependencies: EngineeringRunnerDependencies;
   readonly #now: () => Date;
-  #evidenceSequence = 0;
 
   constructor(dependencies: EngineeringRunnerDependencies) {
     this.#dependencies = dependencies;
@@ -300,7 +299,29 @@ export class EngineeringRunner {
     let currentHeadSha: string | null = null;
     let activeModel: EngineeringModelCandidate | null = null;
     let stage = 'model routing';
+    let evidenceSequence = 0;
     const unavailableModels = new Set<string>();
+
+    const recordEvidence = async (
+      state: EngineeringRunState,
+      eventType: EngineeringEvidenceEventType,
+      headSha: string | null,
+      evidenceModel: EngineeringModelCandidate | null,
+    ): Promise<void> => {
+      const sequence = evidenceSequence + 1;
+      await this.#dependencies.evidence.record({
+        runId: state.runId,
+        sequence,
+        eventType,
+        payload: {
+          state,
+          headSha,
+          activeModel: evidenceModel === null ? null : { ...evidenceModel },
+        },
+        recordedAt: this.#now().toISOString(),
+      });
+      evidenceSequence = sequence;
+    };
 
     try {
       const routingDecision =
@@ -311,13 +332,13 @@ export class EngineeringRunner {
       if (envelope.modelSelection === null) {
         machine.apply({ type: 'MODEL_SELECTED', selection: selectionFromDecision(routingDecision) });
       }
-      await this.#recordEvidence(machine.state, 'model_selected', currentHeadSha, routingDecision.winner);
+      await recordEvidence(machine.state, 'model_selected', currentHeadSha, routingDecision.winner);
 
       stage = 'workspace preparation';
       await this.#authorize('create_feature_branch', envelope);
       workspace = requireWorkspace(await this.#dependencies.workspace.prepare(envelope), envelope);
       machine.apply({ type: 'START' });
-      await this.#recordEvidence(machine.state, 'workspace_prepared', currentHeadSha, null);
+      await recordEvidence(machine.state, 'workspace_prepared', currentHeadSha, null);
 
       const candidates = [routingDecision.winner, ...routingDecision.fallbacks];
 
@@ -346,7 +367,7 @@ export class EngineeringRunner {
             }
 
             unavailableModels.add(candidateKey(candidate));
-            await this.#recordEvidence(machine.state, 'model_fallback', currentHeadSha, candidate);
+            await recordEvidence(machine.state, 'model_fallback', currentHeadSha, candidate);
           }
         }
 
@@ -355,14 +376,14 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: 'No eligible engineering model remained available for worker execution.',
           });
-          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, null);
+          await recordEvidence(machine.state, 'blocked', currentHeadSha, null);
           break;
         }
 
         currentHeadSha = await this.#dependencies.workspace.readHead(workspace);
         requireSha(currentHeadSha, 'implementationHeadSha');
         machine.apply({ type: 'IMPLEMENTATION_READY' });
-        await this.#recordEvidence(
+        await recordEvidence(
           machine.state,
           'implementation_completed',
           currentHeadSha,
@@ -385,7 +406,7 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: 'Engineering workspace HEAD changed during validation.',
           });
-          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
+          await recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
 
@@ -393,7 +414,7 @@ export class EngineeringRunner {
         if (validationFailure !== null) {
           const state = machine.apply({ type: 'VALIDATION_FAILED', reason: validationFailure });
           correctionReason = validationFailure;
-          await this.#recordEvidence(state, 'validation_failed', currentHeadSha, activeModel);
+          await recordEvidence(state, 'validation_failed', currentHeadSha, activeModel);
           if (state.status === 'blocked') {
             break;
           }
@@ -401,7 +422,7 @@ export class EngineeringRunner {
         }
 
         machine.apply({ type: 'VALIDATION_PASSED', checks });
-        await this.#recordEvidence(machine.state, 'validation_passed', currentHeadSha, activeModel);
+        await recordEvidence(machine.state, 'validation_passed', currentHeadSha, activeModel);
 
         stage = 'independent review';
         const review = await this.#dependencies.review.review(workspace, headAfterValidation);
@@ -410,7 +431,7 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: 'Independent engineering review reported blocking findings.',
           });
-          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
+          await recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
         const headAfterReview = await this.#dependencies.workspace.readHead(workspace);
@@ -421,17 +442,17 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: 'Engineering workspace HEAD changed during independent review.',
           });
-          await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
+          await recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
           break;
         }
         machine.apply({ type: 'REVIEW_PASSED' });
-        await this.#recordEvidence(machine.state, 'review_passed', currentHeadSha, activeModel);
+        await recordEvidence(machine.state, 'review_passed', currentHeadSha, activeModel);
 
         stage = 'feature branch push';
         const headSha = headAfterReview;
         await this.#authorize('push_feature_branch', envelope);
         await this.#dependencies.workspace.pushFeatureBranch(workspace, headSha);
-        await this.#recordEvidence(machine.state, 'feature_branch_pushed', headSha, activeModel);
+        await recordEvidence(machine.state, 'feature_branch_pushed', headSha, activeModel);
 
         stage = 'Draft PR publication';
         await this.#authorize('create_or_update_draft_pr', envelope);
@@ -448,7 +469,7 @@ export class EngineeringRunner {
             type: 'BLOCK',
             reason: `Draft PR head ${pullRequest.headSha} does not match pushed head ${headSha}.`,
           });
-          await this.#recordEvidence(machine.state, 'blocked', headSha, activeModel);
+          await recordEvidence(machine.state, 'blocked', headSha, activeModel);
           break;
         }
 
@@ -457,7 +478,7 @@ export class EngineeringRunner {
           prNumber: pullRequest.number,
           headSha: pullRequest.headSha,
         });
-        await this.#recordEvidence(machine.state, 'draft_pr_published', headSha, activeModel);
+        await recordEvidence(machine.state, 'draft_pr_published', headSha, activeModel);
 
         stage = 'GitHub CI observation';
         await this.#authorize('observe_ci', envelope);
@@ -467,7 +488,7 @@ export class EngineeringRunner {
 
         if (ci.conclusion === 'success') {
           machine.apply({ type: 'CI_PASSED', headSha: ci.headSha });
-          await this.#recordEvidence(machine.state, 'ci_passed', ci.headSha, activeModel);
+          await recordEvidence(machine.state, 'ci_passed', ci.headSha, activeModel);
           break;
         }
 
@@ -478,7 +499,7 @@ export class EngineeringRunner {
           reason: ciFailureReason,
         });
         correctionReason = ciFailureReason;
-        await this.#recordEvidence(state, 'ci_failed', ci.headSha, activeModel);
+        await recordEvidence(state, 'ci_failed', ci.headSha, activeModel);
         if (state.status === 'blocked') {
           break;
         }
@@ -495,7 +516,7 @@ export class EngineeringRunner {
       }
 
       try {
-        await this.#recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
+        await recordEvidence(machine.state, 'blocked', currentHeadSha, activeModel);
       } catch {
         // Evidence persistence failure is itself fail-closed; do not mask the blocked run state.
       }
@@ -505,26 +526,6 @@ export class EngineeringRunner {
       state: machine.state,
       workspace,
     };
-  }
-
-  async #recordEvidence(
-    state: EngineeringRunState,
-    eventType: EngineeringEvidenceEventType,
-    headSha: string | null,
-    activeModel: EngineeringModelCandidate | null,
-  ): Promise<void> {
-    this.#evidenceSequence += 1;
-    await this.#dependencies.evidence.record({
-      runId: state.runId,
-      sequence: this.#evidenceSequence,
-      eventType,
-      payload: {
-        state,
-        headSha,
-        activeModel: activeModel === null ? null : { ...activeModel },
-      },
-      recordedAt: this.#now().toISOString(),
-    });
   }
 
   async #authorize(
