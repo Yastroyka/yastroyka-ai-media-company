@@ -16,12 +16,32 @@
       "type": "string"
     },
     "winner": {
-      "type": "object"
+      "type": "object",
+      "required": [
+        "model_id",
+        "provider",
+        "revision"
+      ],
+      "properties": {
+        "model_id": { "type": "string" },
+        "provider": { "type": "string" },
+        "revision": { "type": "string" }
+      }
     },
     "fallbacks": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "model_id",
+          "provider",
+          "revision"
+        ],
+        "properties": {
+          "model_id": { "type": "string" },
+          "provider": { "type": "string" },
+          "revision": { "type": "string" }
+        }
       }
     },
     "why_this_model": {
