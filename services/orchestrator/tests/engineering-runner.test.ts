@@ -248,7 +248,10 @@ test('runner reaches owner decision through routed model, Draft PR, exact-head C
     headSha: HEAD_ONE,
     draft: true,
   });
-  assert.deepEqual(harness.workerInputs.map((input) => input.model), [PRIMARY_MODEL]);
+  assert.deepEqual(
+    harness.workerInputs.map((input) => input.model),
+    [PRIMARY_MODEL],
+  );
   assert.deepEqual(harness.reviewHeads, [HEAD_ONE]);
   assert.deepEqual(harness.pushedHeads, [HEAD_ONE]);
   assert.deepEqual(harness.draftHeads, [HEAD_ONE]);
@@ -315,7 +318,10 @@ test('routing failure blocks before repository mutation', async () => {
   const result = await harness.runner.run(envelope());
 
   assert.equal(result.state.status, 'blocked');
-  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during model routing.');
+  assert.equal(
+    result.state.blockerReason,
+    'Engineering runner failed closed during model routing.',
+  );
   assert.equal(harness.routingCalls, 1);
   assert.equal(harness.workspacePrepareCalls, 0);
   assert.deepEqual(harness.authorizationActions, []);
@@ -328,8 +334,14 @@ test('ordinary worker failure does not silently activate fallback', async () => 
   const result = await harness.runner.run(envelope());
 
   assert.equal(result.state.status, 'blocked');
-  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during worker implementation.');
-  assert.deepEqual(harness.workerInputs.map((input) => input.model.model), [PRIMARY_MODEL.model]);
+  assert.equal(
+    result.state.blockerReason,
+    'Engineering runner failed closed during worker implementation.',
+  );
+  assert.deepEqual(
+    harness.workerInputs.map((input) => input.model.model),
+    [PRIMARY_MODEL.model],
+  );
   assert.equal(
     harness.evidenceRecords.some((record) => record.eventType === 'model_fallback'),
     false,
@@ -342,9 +354,15 @@ test('durable evidence failure blocks before subsequent repository mutation', as
   const result = await harness.runner.run(envelope());
 
   assert.equal(result.state.status, 'blocked');
-  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during model routing.');
+  assert.equal(
+    result.state.blockerReason,
+    'Engineering runner failed closed during model routing.',
+  );
   assert.equal(harness.workspacePrepareCalls, 0);
   assert.deepEqual(harness.authorizationActions, []);
+  assert.equal(harness.evidenceRecords.length, 1);
+  assert.equal(harness.evidenceRecords[0]?.sequence, 1);
+  assert.equal(harness.evidenceRecords[0]?.eventType, 'blocked');
 });
 
 test('failed validation feeds one bounded correction attempt back to the worker', async () => {
@@ -484,6 +502,9 @@ test('untrusted review text is not copied into canonical blocker or evidence sta
     'Independent engineering review reported blocking findings.',
   );
   assert.doesNotMatch(result.state.blockerReason ?? '', /token=/u);
-  assert.equal(JSON.stringify(harness.evidenceRecords).includes('token=should-not-enter-run-state'), false);
+  assert.equal(
+    JSON.stringify(harness.evidenceRecords).includes('token=should-not-enter-run-state'),
+    false,
+  );
   assert.deepEqual(harness.pushedHeads, []);
 });
