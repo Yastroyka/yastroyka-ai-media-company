@@ -16,6 +16,11 @@ import {
   up as modelExchangeCoreUp,
 } from '../migrations/0003-model-exchange-core.ts';
 
+import {
+  down as engineeringRunEvidenceDown,
+  up as engineeringRunEvidenceUp,
+} from '../migrations/0004-engineering-run-evidence.ts';
+
 export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
   return new Umzug<QueryInterface>({
     migrations: [
@@ -33,6 +38,11 @@ export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
         name: '0003-model-exchange-core',
         up: modelExchangeCoreUp,
         down: modelExchangeCoreDown,
+      },
+      {
+        name: '0004-engineering-run-evidence',
+        up: engineeringRunEvidenceUp,
+        down: engineeringRunEvidenceDown,
       },
     ],
     context: database.getQueryInterface(),
