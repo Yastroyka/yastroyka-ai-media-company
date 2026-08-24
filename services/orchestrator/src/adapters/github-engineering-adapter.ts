@@ -96,7 +96,9 @@ export class GitHubEngineeringAdapter implements EngineeringGitHubPort {
       throw new Error('GitHub CI transport returned evidence for a different head SHA.');
     }
     if (result.status !== 'completed' || result.conclusion === null) {
-      throw new Error('GitHub CI transport returned non-terminal evidence after waitForPullRequestCi.');
+      throw new Error(
+        'GitHub CI transport returned non-terminal evidence after waitForPullRequestCi.',
+      );
     }
 
     return {
