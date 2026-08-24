@@ -131,6 +131,7 @@ export interface EngineeringEvidencePayload {
   readonly state: EngineeringRunState;
   readonly headSha: string | null;
   readonly activeModel: EngineeringModelCandidate | null;
+  readonly routingDecision: EngineeringModelRoutingDecision | null;
 }
 
 export interface EngineeringRunEvidenceRecord {
@@ -260,6 +261,16 @@ function validateRoutingDecision(
   };
 }
 
+function cloneRoutingDecision(
+  decision: EngineeringModelRoutingDecision,
+): EngineeringModelRoutingDecision {
+  return {
+    winner: { ...decision.winner },
+    fallbacks: decision.fallbacks.map((candidate) => ({ ...candidate })),
+    whyThisModel: decision.whyThisModel,
+  };
+}
+
 function selectionFromDecision(
   decision: EngineeringModelRoutingDecision,
 ): EngineeringModelSelection {
@@ -300,6 +311,7 @@ export class EngineeringRunner {
     let correctionReason: string | null = null;
     let currentHeadSha: string | null = null;
     let activeModel: EngineeringModelCandidate | null = null;
+    let routingEvidence: EngineeringModelRoutingDecision | null = null;
     let stage = 'model routing';
     let evidenceSequence = 0;
     const unavailableModels = new Set<string>();
@@ -319,6 +331,8 @@ export class EngineeringRunner {
           state,
           headSha,
           activeModel: evidenceModel === null ? null : { ...evidenceModel },
+          routingDecision:
+            routingEvidence === null ? null : cloneRoutingDecision(routingEvidence),
         },
         recordedAt: this.#now().toISOString(),
       });
@@ -330,6 +344,7 @@ export class EngineeringRunner {
         envelope.modelSelection === null
           ? validateRoutingDecision(await this.#dependencies.modelRouting.route(envelope))
           : validateRoutingDecision(decisionFromApprovedSelection(envelope.modelSelection));
+      routingEvidence = routingDecision;
 
       if (envelope.modelSelection === null) {
         machine.apply({
@@ -372,7 +387,12 @@ export class EngineeringRunner {
             }
 
             unavailableModels.add(candidateKey(candidate));
-            await recordEvidence(machine.state, 'model_fallback', currentHeadSha, candidate);
+            const fallback = candidates.find(
+              (nextCandidate) => !unavailableModels.has(candidateKey(nextCandidate)),
+            );
+            if (fallback !== undefined) {
+              await recordEvidence(machine.state, 'model_fallback', currentHeadSha, fallback);
+            }
           }
         }
 
