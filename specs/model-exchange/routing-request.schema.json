@@ -27,7 +27,17 @@
       ]
     },
     "requirements": {
-      "type": "object"
+      "type": "object",
+      "description": "TASK-007 supports exact provider and revision requirements. Runtime rejects unknown requirement semantics fail-closed.",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      },
+      "x-yastroyka-unknown-requirements": "fail-closed"
     }
   }
 }

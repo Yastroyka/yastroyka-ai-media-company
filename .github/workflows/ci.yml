@@ -77,6 +77,12 @@ jobs:
       - name: Run orchestrator tests
         run: pnpm --filter @yastroyka/orchestrator run test
 
+      - name: Typecheck Model Exchange
+        run: pnpm --filter @yastroyka/model-exchange run typecheck
+
+      - name: Run Model Exchange tests
+        run: pnpm --filter @yastroyka/model-exchange run test
+
       - name: Typecheck Temporal workflows
         run: pnpm --filter @yastroyka/temporal-workflows run typecheck
 

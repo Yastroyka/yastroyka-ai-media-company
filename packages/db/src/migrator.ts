@@ -11,6 +11,11 @@ import {
   up as authorizationAuditEventsUp,
 } from '../migrations/0002-authorization-audit-events.ts';
 
+import {
+  down as modelExchangeCoreDown,
+  up as modelExchangeCoreUp,
+} from '../migrations/0003-model-exchange-core.ts';
+
 export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
   return new Umzug<QueryInterface>({
     migrations: [
@@ -23,6 +28,11 @@ export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
         name: '0002-authorization-audit-events',
         up: authorizationAuditEventsUp,
         down: authorizationAuditEventsDown,
+      },
+      {
+        name: '0003-model-exchange-core',
+        up: modelExchangeCoreUp,
+        down: modelExchangeCoreDown,
       },
     ],
     context: database.getQueryInterface(),

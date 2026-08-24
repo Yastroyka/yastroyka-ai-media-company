@@ -27,7 +27,17 @@
       }
     },
     "scores": {
-      "type": "object"
+      "type": "object",
+      "description": "Provider-neutral finite scores keyed by RoutingRequest mode. Unknown keys are not routing authority.",
+      "properties": {
+        "MAX_QUALITY": { "type": "number" },
+        "BEST_VALUE": { "type": "number" },
+        "FAST": { "type": "number" },
+        "BULK": { "type": "number" },
+        "EXPERIMENT": { "type": "number" },
+        "REDUNDANT": { "type": "number" },
+        "CRITICAL": { "type": "number" }
+      }
     },
     "lifecycle": {
       "enum": [

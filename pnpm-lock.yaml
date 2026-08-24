@@ -51,6 +51,9 @@ importers:
       '@yastroyka/auth':
         specifier: workspace:*
         version: link:../auth
+      '@yastroyka/model-exchange':
+        specifier: workspace:*
+        version: link:../../services/model-exchange
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -68,17 +71,23 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
 
-  services/orchestrator:
-    devDependencies:
-      '@types/node':
-        specifier: 24.13.3
-        version: 24.13.3
-
   services/commerce-bridge:
     dependencies:
       '@yastroyka/commerce-sdk':
         specifier: workspace:*
         version: link:../../packages/commerce-sdk
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
+  services/model-exchange:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
+  services/orchestrator:
     devDependencies:
       '@types/node':
         specifier: 24.13.3

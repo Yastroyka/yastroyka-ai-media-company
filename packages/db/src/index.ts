@@ -12,3 +12,11 @@ export {
 } from './project-with-outbox.ts';
 
 export { createPostgresAuthorizationAuditSink } from './postgres-authorization-audit-sink.ts';
+
+export {
+  PostgresCapabilityRegistry,
+  PostgresDecisionTraceStore,
+  RoutingDecisionConflictError,
+  createPostgresCapabilityRegistry,
+  createPostgresDecisionTraceStore,
+} from './postgres-model-exchange-store.ts';
