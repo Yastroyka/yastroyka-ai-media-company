@@ -60,6 +60,7 @@ function createHarness(options: RunnerHarnessOptions = {}) {
   const pushedHeads: string[] = [];
   const draftHeads: string[] = [];
   const ciHeads: string[] = [];
+  let validationCalls = 0;
   let currentHead = BASE_SHA;
   let validationIndex = 0;
   let ciIndex = 0;
@@ -102,6 +103,7 @@ function createHarness(options: RunnerHarnessOptions = {}) {
 
   const validation: EngineeringValidationPort = {
     async validate() {
+      validationCalls += 1;
       const result = options.validationResults?.[validationIndex] ?? PASSED_CHECKS;
       validationIndex += 1;
       if (options.validationHeadMutation !== undefined) {
@@ -153,6 +155,9 @@ function createHarness(options: RunnerHarnessOptions = {}) {
     pushedHeads,
     draftHeads,
     ciHeads,
+    get validationCalls() {
+      return validationCalls;
+    },
   };
 }
 
@@ -173,6 +178,7 @@ test('runner reaches owner decision through a Draft PR and exact-head CI', async
   assert.deepEqual(harness.ciHeads, [HEAD_ONE]);
   assert.deepEqual(harness.authorizationActions, [
     'create_feature_branch',
+    'run_validation',
     'push_feature_branch',
     'create_or_update_draft_pr',
     'observe_ci',
@@ -255,6 +261,22 @@ test('workspace HEAD change during review blocks before push', async () => {
     'Engineering workspace HEAD changed during independent review.',
   );
   assert.deepEqual(harness.reviewHeads, [HEAD_ONE]);
+  assert.deepEqual(harness.pushedHeads, []);
+  assert.deepEqual(harness.draftHeads, []);
+  assert.deepEqual(harness.ciHeads, []);
+});
+
+test('validation authorization denial fails closed before validation runs', async () => {
+  const harness = createHarness({ denyAction: 'run_validation' });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(result.state.decisionState, 'BLOCKED');
+  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during validation.');
+  assert.equal(harness.validationCalls, 0);
+  assert.deepEqual(harness.authorizationActions, ['create_feature_branch', 'run_validation']);
+  assert.deepEqual(harness.reviewHeads, []);
   assert.deepEqual(harness.pushedHeads, []);
   assert.deepEqual(harness.draftHeads, []);
   assert.deepEqual(harness.ciHeads, []);
