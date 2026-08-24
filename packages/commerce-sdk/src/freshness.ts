@@ -1,6 +1,11 @@
-import type { FreshnessDecision, FreshnessPolicy, OfferSnapshot } from './contracts.ts';
+import type {
+  FreshnessBlockedDecision,
+  FreshnessDecision,
+  FreshnessPolicy,
+  OfferSnapshot,
+} from './contracts.ts';
 
-function blocked(reason: FreshnessDecision['reason']): FreshnessDecision {
+function blocked(reason: FreshnessBlockedDecision['reason']): FreshnessBlockedDecision {
   return {
     status: 'BLOCK',
     reason,

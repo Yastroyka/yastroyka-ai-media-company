@@ -64,22 +64,15 @@ test('zero TTL and zero grace block immediately', () => {
 });
 
 test('missing TTL and future snapshots fail closed', () => {
-  const { ttl_seconds: _ttlSeconds, ...withoutTtl } = snapshot;
+  const withoutTtl = { ...snapshot };
+  delete withoutTtl.ttl_seconds;
 
   assert.equal(
-    evaluateOfferSnapshotFreshness(
-      withoutTtl,
-      policy,
-      new Date('2026-08-17T12:00:01.000Z'),
-    ).reason,
+    evaluateOfferSnapshotFreshness(withoutTtl, policy, new Date('2026-08-17T12:00:01.000Z')).reason,
     'FRESHNESS_UNVERIFIABLE',
   );
   assert.equal(
-    evaluateOfferSnapshotFreshness(
-      snapshot,
-      policy,
-      new Date('2026-08-17T11:59:59.000Z'),
-    ).reason,
+    evaluateOfferSnapshotFreshness(snapshot, policy, new Date('2026-08-17T11:59:59.000Z')).reason,
     'SNAPSHOT_CAPTURED_IN_FUTURE',
   );
 });

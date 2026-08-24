@@ -8,7 +8,6 @@ function createSource(
   overrides: Partial<CommerceReadSource> & Pick<CommerceReadSource, 'mode'>,
 ): CommerceReadSource {
   return {
-    mode: overrides.mode,
     async readCatalogProduct() {
       return {
         product_id: 'product-task-006',
@@ -137,9 +136,7 @@ test('product, offer and snapshot identities cannot be collapsed or crossed', as
       };
     },
   });
-  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(
-    request,
-  );
+  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(request);
 
   assert.deepEqual(result, {
     status: 'BLOCK',
@@ -176,9 +173,7 @@ test('inactive offers block before snapshot, rights or claim reads', async () =>
       return [];
     },
   });
-  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(
-    request,
-  );
+  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(request);
 
   assert.equal(result.status, 'BLOCK');
   assert.equal(result.status === 'BLOCK' ? result.reason : null, 'OFFER_NOT_ACTIVE');
@@ -200,9 +195,7 @@ test('a snapshot from another offer fails closed', async () => {
       };
     },
   });
-  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(
-    request,
-  );
+  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(request);
 
   assert.equal(result.status, 'BLOCK');
   assert.equal(result.status === 'BLOCK' ? result.reason : null, 'OFFER_SNAPSHOT_MISMATCH');
@@ -221,9 +214,7 @@ test('invalid untrusted source payloads fail closed without exposing their conte
       };
     },
   });
-  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(
-    request,
-  );
+  const result = await createBridge(source, '2026-08-17T12:04:00.000Z').buildContentPack(request);
 
   assert.equal(result.status, 'BLOCK');
 

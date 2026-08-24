@@ -123,10 +123,7 @@ export function parseOfferSnapshot(value: unknown): OfferSnapshot {
     throw new CommerceContractError('OfferSnapshot', 'stock');
   }
 
-  if (
-    ttlSeconds !== undefined &&
-    (!Number.isSafeInteger(ttlSeconds) || Number(ttlSeconds) < 0)
-  ) {
+  if (ttlSeconds !== undefined && (!Number.isSafeInteger(ttlSeconds) || Number(ttlSeconds) < 0)) {
     throw new CommerceContractError('OfferSnapshot', 'ttl_seconds');
   }
 

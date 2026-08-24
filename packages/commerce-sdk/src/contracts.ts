@@ -67,12 +67,30 @@ export type FreshnessReason =
   | 'FRESHNESS_UNVERIFIABLE'
   | 'SNAPSHOT_CAPTURED_IN_FUTURE';
 
-export interface FreshnessDecision {
-  readonly status: FreshnessStatus;
-  readonly reason: FreshnessReason;
+interface FreshnessDecisionBase {
   readonly checked_fields: readonly ['price', 'stock'];
+}
+
+export interface FreshnessFreshDecision extends FreshnessDecisionBase {
+  readonly status: 'FRESH';
+  readonly reason: 'PRICE_STOCK_FRESH';
+  readonly age_seconds: number;
+}
+
+export interface FreshnessRefreshDecision extends FreshnessDecisionBase {
+  readonly status: 'REFRESH';
+  readonly reason: 'PRICE_STOCK_STALE';
+  readonly age_seconds: number;
+}
+
+export interface FreshnessBlockedDecision extends FreshnessDecisionBase {
+  readonly status: 'BLOCK';
+  readonly reason: Exclude<FreshnessReason, 'PRICE_STOCK_FRESH' | 'PRICE_STOCK_STALE'>;
   readonly age_seconds: number | null;
 }
+
+export type FreshnessDecision =
+  FreshnessFreshDecision | FreshnessRefreshDecision | FreshnessBlockedDecision;
 
 export interface FreshnessPolicy {
   readonly refresh_grace_seconds: number;

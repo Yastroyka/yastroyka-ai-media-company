@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  CommerceContractError,
-  parseCatalogProduct,
-  parseOfferSnapshot,
-} from '../src/index.ts';
+import { CommerceContractError, parseCatalogProduct, parseOfferSnapshot } from '../src/index.ts';
 
 test('snapshot validation rejects non-finite price and stock values', () => {
   const base = {
