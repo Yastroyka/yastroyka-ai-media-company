@@ -3,10 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import { assertAutonomousEngineeringActionAllowed } from '../engineering-run.ts';
-import type {
-  EngineeringWorkspace,
-  EngineeringWorkspacePort,
-} from '../engineering-runner.ts';
+import type { EngineeringWorkspace, EngineeringWorkspacePort } from '../engineering-runner.ts';
 import type { EngineeringTaskEnvelope } from '../engineering-run.ts';
 
 export interface EngineeringCommandRequest {
@@ -189,10 +186,7 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
     return headSha;
   }
 
-  async pushFeatureBranch(
-    workspace: EngineeringWorkspace,
-    expectedHeadSha: string,
-  ): Promise<void> {
+  async pushFeatureBranch(workspace: EngineeringWorkspace, expectedHeadSha: string): Promise<void> {
     assertAutonomousEngineeringActionAllowed('push_feature_branch');
     this.#assertWorkspace(workspace);
     requireSha(expectedHeadSha, 'expectedHeadSha');
