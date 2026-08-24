@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RoutingRequest",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "request_id",
     "task_class",
@@ -28,6 +29,7 @@
     },
     "requirements": {
       "type": "object",
+      "additionalProperties": false,
       "description": "TASK-007 supports exact provider and revision requirements. Runtime rejects unknown requirement semantics fail-closed.",
       "properties": {
         "provider": {

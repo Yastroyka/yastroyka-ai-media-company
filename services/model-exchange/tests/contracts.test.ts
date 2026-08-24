@@ -41,6 +41,30 @@ test('canonical schemas preserve lifecycle and routing mode enums', async () => 
   ]);
 });
 
+test('canonical RoutingRequest schema rejects unknown request semantics', async () => {
+  const requestSchema = JSON.parse(
+    await readFile(
+      new URL('../../../specs/model-exchange/routing-request.schema.json', import.meta.url),
+      'utf8',
+    ),
+  ) as {
+    additionalProperties: boolean;
+    properties: {
+      requirements: {
+        additionalProperties: boolean;
+        properties: Record<string, unknown>;
+      };
+    };
+  };
+
+  assert.equal(requestSchema.additionalProperties, false);
+  assert.equal(requestSchema.properties.requirements.additionalProperties, false);
+  assert.deepEqual(Object.keys(requestSchema.properties.requirements.properties).sort(), [
+    'provider',
+    'revision',
+  ]);
+});
+
 test('OpenAPI route references canonical request and decision schemas with fail-closed statuses', async () => {
   const openApi = await readFile(
     new URL('../../../specs/openapi/openapi.yaml', import.meta.url),
