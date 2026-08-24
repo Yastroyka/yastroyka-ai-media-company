@@ -32,6 +32,26 @@ export {
 } from './engineering-run.ts';
 
 export {
+  EngineeringRunner,
+  type EngineeringAuthorizationPort,
+  type EngineeringAuthorizationRequest,
+  type EngineeringCiConclusion,
+  type EngineeringCiResult,
+  type EngineeringDraftPullRequest,
+  type EngineeringDraftPullRequestInput,
+  type EngineeringGitHubPort,
+  type EngineeringReviewPort,
+  type EngineeringReviewResult,
+  type EngineeringRunnerDependencies,
+  type EngineeringRunnerResult,
+  type EngineeringValidationPort,
+  type EngineeringWorkerInput,
+  type EngineeringWorkerPort,
+  type EngineeringWorkspace,
+  type EngineeringWorkspacePort,
+} from './engineering-runner.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
@@ -40,3 +60,20 @@ export {
 } from './adapters/claude-adapter.ts';
 
 export { FakeAdapter, type FakeAdapterOptions } from './adapters/fake-adapter.ts';
+
+export {
+  EngineeringCommandError,
+  GitWorktreeAdapter,
+  NodeEngineeringCommandExecutor,
+  type EngineeringCommandExecutor,
+  type EngineeringCommandRequest,
+  type EngineeringCommandResult,
+  type GitWorktreeAdapterOptions,
+} from './adapters/git-worktree-adapter.ts';
+
+export {
+  GitHubEngineeringAdapter,
+  type GitHubCiTransportResult,
+  type GitHubDraftPullRequestTransportResult,
+  type GitHubEngineeringTransport,
+} from './adapters/github-engineering-adapter.ts';
