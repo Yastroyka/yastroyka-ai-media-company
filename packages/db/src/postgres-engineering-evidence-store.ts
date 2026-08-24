@@ -76,8 +76,38 @@ function serializeJson(value: unknown): string {
   return serialized;
 }
 
+function normalizeJson(value: unknown): unknown {
+  return JSON.parse(serializeJson(value)) as unknown;
+}
+
 function parseJsonPayload(value: unknown): unknown {
   return typeof value === 'string' ? (JSON.parse(value) as unknown) : value;
+}
+
+function compareText(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+}
+
+function canonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalizeJson(item));
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => compareText(left, right))
+      .map(([key, nested]) => [key, canonicalizeJson(nested)]),
+  );
 }
 
 function validateRecord(record: DurableEngineeringEvidenceRecord): DurableEngineeringEvidenceRecord {
@@ -85,23 +115,24 @@ function validateRecord(record: DurableEngineeringEvidenceRecord): DurableEngine
   requireSequence(record.sequence);
   requireEventType(record.eventType);
   requireIsoTimestamp(record.recordedAt);
-  serializeJson(record.payload);
 
   return {
     runId: record.runId,
     sequence: record.sequence,
     eventType: record.eventType,
-    payload: structuredClone(record.payload),
+    payload: normalizeJson(record.payload),
     recordedAt: record.recordedAt,
   };
 }
 
 function fingerprint(record: DurableEngineeringEvidenceRecord): string {
-  return JSON.stringify({
-    eventType: record.eventType,
-    payload: record.payload,
-    recordedAt: record.recordedAt,
-  });
+  return JSON.stringify(
+    canonicalizeJson({
+      eventType: record.eventType,
+      payload: record.payload,
+      recordedAt: record.recordedAt,
+    }),
+  );
 }
 
 async function readEntry(
