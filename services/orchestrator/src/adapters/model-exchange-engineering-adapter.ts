@@ -6,13 +6,7 @@ import type {
 import type { EngineeringRiskClass, EngineeringTaskEnvelope } from '../engineering-run.ts';
 
 export type EngineeringModelRoutingMode =
-  | 'MAX_QUALITY'
-  | 'BEST_VALUE'
-  | 'FAST'
-  | 'BULK'
-  | 'EXPERIMENT'
-  | 'REDUNDANT'
-  | 'CRITICAL';
+  'MAX_QUALITY' | 'BEST_VALUE' | 'FAST' | 'BULK' | 'EXPERIMENT' | 'REDUNDANT' | 'CRITICAL';
 
 export interface ModelExchangeEngineeringIdentity {
   readonly model_id: string;
