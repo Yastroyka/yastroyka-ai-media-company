@@ -12,6 +12,13 @@ export type EngineeringRunStatus =
 
 export type EngineeringDecisionState = 'PENDING' | 'READY_FOR_OWNER_DECISION' | 'BLOCKED';
 
+export type EngineeringCheckConclusion = 'passed' | 'failed' | 'not_run';
+
+export interface EngineeringCheckEvidence {
+  readonly name: string;
+  readonly conclusion: EngineeringCheckConclusion;
+}
+
 export interface EngineeringModelSelection {
   readonly provider: string;
   readonly model: string;
@@ -48,6 +55,7 @@ export interface EngineeringRunState {
   readonly attempt: number;
   readonly maxAttempts: number;
   readonly requiredChecks: readonly string[];
+  readonly validationEvidence: readonly EngineeringCheckEvidence[];
   readonly modelSelection: EngineeringModelSelection | null;
   readonly pullRequest: EngineeringPullRequestEvidence | null;
   readonly blockerReason: string | null;
@@ -57,7 +65,7 @@ export type EngineeringRunEvent =
   | { readonly type: 'START' }
   | { readonly type: 'IMPLEMENTATION_READY' }
   | { readonly type: 'VALIDATION_FAILED'; readonly reason: string }
-  | { readonly type: 'VALIDATION_PASSED' }
+  | { readonly type: 'VALIDATION_PASSED'; readonly checks: readonly EngineeringCheckEvidence[] }
   | { readonly type: 'REVIEW_PASSED' }
   | {
       readonly type: 'DRAFT_PR_PUBLISHED';
@@ -131,6 +139,44 @@ function validateEnvelope(envelope: EngineeringTaskEnvelope): void {
   if (envelope.requiredChecks.length === 0) {
     throw new Error('At least one required validation check is required.');
   }
+
+  const uniqueChecks = new Set<string>();
+  for (const check of envelope.requiredChecks) {
+    requireIdentifier(check, 'requiredCheck');
+    if (uniqueChecks.has(check)) {
+      throw new Error(`requiredChecks contains a duplicate check: ${check}.`);
+    }
+    uniqueChecks.add(check);
+  }
+}
+
+function validatePassedChecks(
+  requiredChecks: readonly string[],
+  checks: readonly EngineeringCheckEvidence[],
+): readonly EngineeringCheckEvidence[] {
+  const evidenceByName = new Map<string, EngineeringCheckEvidence>();
+
+  for (const check of checks) {
+    requireIdentifier(check.name, 'check.name');
+    if (evidenceByName.has(check.name)) {
+      throw new Error(`Validation evidence contains a duplicate check: ${check.name}.`);
+    }
+    evidenceByName.set(check.name, check);
+  }
+
+  for (const requiredCheck of requiredChecks) {
+    const evidence = evidenceByName.get(requiredCheck);
+    if (evidence === undefined) {
+      throw new Error(`Required validation check has no evidence: ${requiredCheck}.`);
+    }
+    if (evidence.conclusion !== 'passed') {
+      throw new Error(
+        `Required validation check ${requiredCheck} cannot be reported as PASS with conclusion ${evidence.conclusion}.`,
+      );
+    }
+  }
+
+  return checks.map((check) => ({ ...check }));
 }
 
 export class EngineeringPolicyDeniedError extends Error {
@@ -178,6 +224,7 @@ export class EngineeringRunStateMachine {
       attempt: 0,
       maxAttempts: envelope.maxAttempts,
       requiredChecks: [...envelope.requiredChecks],
+      validationEvidence: [],
       modelSelection:
         envelope.modelSelection === null
           ? null
@@ -215,7 +262,8 @@ export class EngineeringRunStateMachine {
 
       case 'validating':
         if (event.type === 'VALIDATION_PASSED') {
-          return this.#replace({ status: 'reviewing' });
+          const validationEvidence = validatePassedChecks(this.#state.requiredChecks, event.checks);
+          return this.#replace({ status: 'reviewing', validationEvidence });
         }
 
         if (event.type === 'VALIDATION_FAILED') {
@@ -289,6 +337,7 @@ export class EngineeringRunStateMachine {
       status: 'executing',
       attempt: this.#state.attempt + 1,
       decisionState: 'PENDING',
+      validationEvidence: [],
       blockerReason: null,
     });
   }
@@ -308,7 +357,12 @@ export class EngineeringRunStateMachine {
     patch: Partial<
       Pick<
         EngineeringRunState,
-        'status' | 'decisionState' | 'attempt' | 'pullRequest' | 'blockerReason'
+        | 'status'
+        | 'decisionState'
+        | 'attempt'
+        | 'validationEvidence'
+        | 'pullRequest'
+        | 'blockerReason'
       >
     >,
   ): EngineeringRunState {
