@@ -102,10 +102,27 @@ test('MILESTONE-03 PostgreSQL engineering evidence is append-only and sanitized'
       );
     });
 
-    await t.test('same sequence is idempotent but conflicting evidence is rejected', async () => {
+    await t.test('same semantic JSON is idempotent across JSONB key ordering', async () => {
       const original = evidence(3, 'validation_passed', 'reviewing');
       await store.record(original);
-      await store.record(structuredClone(original));
+      await store.record({
+        recordedAt: original.recordedAt,
+        payload: {
+          activeModel: original.payload.activeModel,
+          headSha: original.payload.headSha,
+          state: {
+            branch: original.payload.state.branch,
+            baseSha: original.payload.state.baseSha,
+            decisionState: original.payload.state.decisionState,
+            status: original.payload.state.status,
+            taskId: original.payload.state.taskId,
+            runId: original.payload.state.runId,
+          },
+        },
+        eventType: original.eventType,
+        sequence: original.sequence,
+        runId: original.runId,
+      });
 
       await assert.rejects(
         store.record({
