@@ -64,10 +64,9 @@ export { FakeAdapter, type FakeAdapterOptions } from './adapters/fake-adapter.ts
 export {
   EngineeringCommandError,
   GitWorktreeAdapter,
-  NodeEngineeringCommandExecutor,
-  type EngineeringCommandExecutor,
-  type EngineeringCommandRequest,
-  type EngineeringCommandResult,
+  type EngineeringGitCommandExecutor,
+  type EngineeringGitCommandRequest,
+  type EngineeringGitCommandResult,
   type GitWorktreeAdapterOptions,
 } from './adapters/git-worktree-adapter.ts';
 
