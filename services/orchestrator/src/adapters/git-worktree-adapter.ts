@@ -6,26 +6,25 @@ import { assertAutonomousEngineeringActionAllowed } from '../engineering-run.ts'
 import type { EngineeringWorkspace, EngineeringWorkspacePort } from '../engineering-runner.ts';
 import type { EngineeringTaskEnvelope } from '../engineering-run.ts';
 
-export interface EngineeringCommandRequest {
+export interface EngineeringGitCommandRequest {
   readonly cwd: string;
-  readonly file: string;
   readonly args: readonly string[];
 }
 
-export interface EngineeringCommandResult {
+export interface EngineeringGitCommandResult {
   readonly exitCode: number;
   readonly stdout: string;
   readonly stderr: string;
 }
 
-export interface EngineeringCommandExecutor {
-  run(request: EngineeringCommandRequest): Promise<EngineeringCommandResult>;
+export interface EngineeringGitCommandExecutor {
+  run(request: EngineeringGitCommandRequest): Promise<EngineeringGitCommandResult>;
 }
 
-export class NodeEngineeringCommandExecutor implements EngineeringCommandExecutor {
-  run(request: EngineeringCommandRequest): Promise<EngineeringCommandResult> {
+class NodeEngineeringGitCommandExecutor implements EngineeringGitCommandExecutor {
+  run(request: EngineeringGitCommandRequest): Promise<EngineeringGitCommandResult> {
     return new Promise((resolveCommand, rejectCommand) => {
-      const child = spawn(request.file, [...request.args], {
+      const child = spawn('git', [...request.args], {
         cwd: request.cwd,
         shell: false,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,7 +68,12 @@ export class EngineeringCommandError extends Error {
 export interface GitWorktreeAdapterOptions {
   readonly repoRoot: string;
   readonly worktreeRoot: string;
-  readonly executor?: EngineeringCommandExecutor;
+  readonly executor?: EngineeringGitCommandExecutor;
+}
+
+interface PreparedWorkspaceIdentity {
+  readonly branch: string;
+  readonly baseSha: string;
 }
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -115,12 +119,13 @@ function requireContainedPath(root: string, candidate: string): void {
 export class GitWorktreeAdapter implements EngineeringWorkspacePort {
   readonly #repoRoot: string;
   readonly #worktreeRoot: string;
-  readonly #executor: EngineeringCommandExecutor;
+  readonly #executor: EngineeringGitCommandExecutor;
+  readonly #preparedWorkspaces = new Map<string, PreparedWorkspaceIdentity>();
 
   constructor(options: GitWorktreeAdapterOptions) {
     this.#repoRoot = requireAbsoluteRoot(options.repoRoot, 'repoRoot');
     this.#worktreeRoot = requireAbsoluteRoot(options.worktreeRoot, 'worktreeRoot');
-    this.#executor = options.executor ?? new NodeEngineeringCommandExecutor();
+    this.#executor = options.executor ?? new NodeEngineeringGitCommandExecutor();
   }
 
   async prepare(envelope: EngineeringTaskEnvelope): Promise<EngineeringWorkspace> {
@@ -131,12 +136,10 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
 
     const worktreePath = resolve(this.#worktreeRoot, envelope.runId);
     requireContainedPath(this.#worktreeRoot, worktreePath);
-    await mkdir(this.#worktreeRoot, { recursive: true });
 
     await this.#runOrThrow(
       {
         cwd: this.#repoRoot,
-        file: 'git',
         args: ['check-ref-format', '--branch', envelope.branch],
       },
       'feature branch validation',
@@ -144,15 +147,15 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
     await this.#runOrThrow(
       {
         cwd: this.#repoRoot,
-        file: 'git',
         args: ['cat-file', '-e', `${envelope.baseSha}^{commit}`],
       },
       'base SHA verification',
     );
+
+    await mkdir(this.#worktreeRoot, { recursive: true });
     await this.#runOrThrow(
       {
         cwd: this.#repoRoot,
-        file: 'git',
         args: ['worktree', 'add', '-b', envelope.branch, worktreePath, envelope.baseSha],
       },
       'isolated worktree creation',
@@ -163,8 +166,14 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
       branch: envelope.branch,
       baseSha: envelope.baseSha,
     };
+    this.#preparedWorkspaces.set(worktreePath, {
+      branch: envelope.branch,
+      baseSha: envelope.baseSha,
+    });
+
     const headSha = await this.readHead(workspace);
     if (headSha !== envelope.baseSha) {
+      this.#preparedWorkspaces.delete(worktreePath);
       throw new Error('Created worktree does not point to the exact approved base SHA.');
     }
 
@@ -172,11 +181,10 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
   }
 
   async readHead(workspace: EngineeringWorkspace): Promise<string> {
-    this.#assertWorkspace(workspace);
+    const workspacePath = this.#assertWorkspace(workspace);
     const result = await this.#runOrThrow(
       {
-        cwd: workspace.path,
-        file: 'git',
+        cwd: workspacePath,
         args: ['rev-parse', 'HEAD'],
       },
       'worktree HEAD read',
@@ -188,7 +196,7 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
 
   async pushFeatureBranch(workspace: EngineeringWorkspace, expectedHeadSha: string): Promise<void> {
     assertAutonomousEngineeringActionAllowed('push_feature_branch');
-    this.#assertWorkspace(workspace);
+    const workspacePath = this.#assertWorkspace(workspace);
     requireSha(expectedHeadSha, 'expectedHeadSha');
 
     const currentHeadSha = await this.readHead(workspace);
@@ -198,8 +206,7 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
 
     await this.#runOrThrow(
       {
-        cwd: workspace.path,
-        file: 'git',
+        cwd: workspacePath,
         args: ['push', 'origin', `HEAD:refs/heads/${workspace.branch}`],
       },
       'feature branch push',
@@ -207,28 +214,39 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
   }
 
   async dispose(workspace: EngineeringWorkspace): Promise<void> {
-    this.#assertWorkspace(workspace);
+    const workspacePath = this.#assertWorkspace(workspace);
     await this.#runOrThrow(
       {
         cwd: this.#repoRoot,
-        file: 'git',
-        args: ['worktree', 'remove', workspace.path],
+        args: ['worktree', 'remove', workspacePath],
       },
       'worktree removal',
     );
+    this.#preparedWorkspaces.delete(workspacePath);
   }
 
-  #assertWorkspace(workspace: EngineeringWorkspace): void {
+  #assertWorkspace(workspace: EngineeringWorkspace): string {
     requireFeatureBranch(workspace.branch);
     requireSha(workspace.baseSha, 'workspace.baseSha');
     const workspacePath = resolve(workspace.path);
     requireContainedPath(this.#worktreeRoot, workspacePath);
+
+    const prepared = this.#preparedWorkspaces.get(workspacePath);
+    if (
+      prepared === undefined ||
+      prepared.branch !== workspace.branch ||
+      prepared.baseSha !== workspace.baseSha
+    ) {
+      throw new Error('Engineering workspace was not prepared by this adapter instance.');
+    }
+
+    return workspacePath;
   }
 
   async #runOrThrow(
-    request: EngineeringCommandRequest,
+    request: EngineeringGitCommandRequest,
     operation: string,
-  ): Promise<EngineeringCommandResult> {
+  ): Promise<EngineeringGitCommandResult> {
     const result = await this.#executor.run(request);
     if (result.exitCode !== 0) {
       throw new EngineeringCommandError(operation, result.exitCode);
