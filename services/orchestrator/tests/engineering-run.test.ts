@@ -7,12 +7,19 @@ import {
   EngineeringRunTransitionError,
   assertAutonomousEngineeringActionAllowed,
   type AutonomousEngineeringAction,
+  type EngineeringCheckEvidence,
   type EngineeringTaskEnvelope,
 } from '../src/index.ts';
 
 const BASE_SHA = 'c2bf1610a3f9fd1aeb540023cd798a25f7dd9ad0';
 const HEAD_SHA = '1111111111111111111111111111111111111111';
 const OTHER_HEAD_SHA = '2222222222222222222222222222222222222222';
+
+const PASSED_CHECKS: readonly EngineeringCheckEvidence[] = [
+  { name: 'typecheck', conclusion: 'passed' },
+  { name: 'test', conclusion: 'passed' },
+  { name: 'quality', conclusion: 'passed' },
+];
 
 function envelope(overrides: Partial<EngineeringTaskEnvelope> = {}): EngineeringTaskEnvelope {
   return {
@@ -37,7 +44,7 @@ function envelope(overrides: Partial<EngineeringTaskEnvelope> = {}): Engineering
 function moveToAwaitingCi(machine: EngineeringRunStateMachine): void {
   machine.apply({ type: 'START' });
   machine.apply({ type: 'IMPLEMENTATION_READY' });
-  machine.apply({ type: 'VALIDATION_PASSED' });
+  machine.apply({ type: 'VALIDATION_PASSED', checks: PASSED_CHECKS });
   machine.apply({ type: 'REVIEW_PASSED' });
   machine.apply({ type: 'DRAFT_PR_PUBLISHED', prNumber: 10, headSha: HEAD_SHA });
 }
@@ -71,9 +78,62 @@ test('validation retries are bounded and exhaustion becomes BLOCKED', () => {
   assert.match(blocked.blockerReason ?? '', /retry budget exhausted/u);
 
   assert.throws(
-    () => machine.apply({ type: 'VALIDATION_PASSED' }),
+    () => machine.apply({ type: 'VALIDATION_PASSED', checks: PASSED_CHECKS }),
     EngineeringRunTransitionError,
   );
+});
+
+test('validation PASS requires evidence for every required check', () => {
+  const machine = new EngineeringRunStateMachine(envelope());
+  machine.apply({ type: 'START' });
+  machine.apply({ type: 'IMPLEMENTATION_READY' });
+
+  assert.throws(
+    () =>
+      machine.apply({
+        type: 'VALIDATION_PASSED',
+        checks: [
+          { name: 'typecheck', conclusion: 'passed' },
+          { name: 'test', conclusion: 'passed' },
+        ],
+      }),
+    /Required validation check has no evidence: quality/u,
+  );
+
+  assert.equal(machine.state.status, 'validating');
+  assert.deepEqual(machine.state.validationEvidence, []);
+});
+
+test('failed or not-run required validation cannot be reported as PASS', () => {
+  for (const conclusion of ['failed', 'not_run'] as const) {
+    const machine = new EngineeringRunStateMachine(envelope());
+    machine.apply({ type: 'START' });
+    machine.apply({ type: 'IMPLEMENTATION_READY' });
+
+    assert.throws(
+      () =>
+        machine.apply({
+          type: 'VALIDATION_PASSED',
+          checks: PASSED_CHECKS.map((check) =>
+            check.name === 'quality' ? { ...check, conclusion } : check,
+          ),
+        }),
+      /cannot be reported as PASS/u,
+    );
+
+    assert.equal(machine.state.status, 'validating');
+  }
+});
+
+test('successful validation stores immutable evidence before review', () => {
+  const machine = new EngineeringRunStateMachine(envelope());
+  machine.apply({ type: 'START' });
+  machine.apply({ type: 'IMPLEMENTATION_READY' });
+
+  const state = machine.apply({ type: 'VALIDATION_PASSED', checks: PASSED_CHECKS });
+
+  assert.equal(state.status, 'reviewing');
+  assert.deepEqual(state.validationEvidence, PASSED_CHECKS);
 });
 
 test('CI evidence is bound to the exact Draft PR head SHA', () => {
@@ -100,6 +160,7 @@ test('successful exact-head CI reaches owner decision without leaving Draft stat
     headSha: HEAD_SHA,
     draft: true,
   });
+  assert.deepEqual(ready.validationEvidence, PASSED_CHECKS);
 });
 
 test('autonomous policy allows reversible routine actions only', () => {
