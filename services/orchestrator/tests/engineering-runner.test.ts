@@ -264,6 +264,11 @@ test('runner reaches owner decision through routed model, Draft PR, exact-head C
     'observe_ci',
   ]);
   assert.equal(harness.evidenceRecords[0]?.eventType, 'model_selected');
+  assert.deepEqual(harness.evidenceRecords[0]?.payload.routingDecision, {
+    winner: PRIMARY_MODEL,
+    fallbacks: [FALLBACK_MODEL],
+    whyThisModel: 'Primary engineering model ranked first with an approved fallback.',
+  });
   assert.equal(harness.evidenceRecords.at(-1)?.eventType, 'ci_passed');
   assert.deepEqual(
     harness.evidenceRecords.map((record) => record.sequence),
@@ -288,7 +293,7 @@ test('provider outage switches to approved fallback without consuming correction
   const fallbackEvidence = harness.evidenceRecords.find(
     (record) => record.eventType === 'model_fallback',
   );
-  assert.deepEqual(fallbackEvidence?.payload.activeModel, PRIMARY_MODEL);
+  assert.deepEqual(fallbackEvidence?.payload.activeModel, FALLBACK_MODEL);
   assert.equal(harness.validationCalls, 1);
 });
 
