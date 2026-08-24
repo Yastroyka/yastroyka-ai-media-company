@@ -35,6 +35,12 @@ function requireIdentifier(value: string, field: string): void {
   }
 }
 
+function requireExplanation(value: string): void {
+  if (value.trim().length === 0 || value.length > 512) {
+    throw new Error('why_this_model must be non-empty and no longer than 512 characters.');
+  }
+}
+
 function toCandidate(
   identity: ModelExchangeEngineeringIdentity,
   field: string,
@@ -78,7 +84,7 @@ export class ModelExchangeEngineeringAdapter implements EngineeringModelRoutingP
       requirements: {},
     });
 
-    requireIdentifier(decision.why_this_model, 'why_this_model');
+    requireExplanation(decision.why_this_model);
     const winner = toCandidate(decision.winner, 'winner');
     const seen = new Set<string>([candidateKey(winner)]);
     const fallbacks = decision.fallbacks.map((fallback, index) => {
