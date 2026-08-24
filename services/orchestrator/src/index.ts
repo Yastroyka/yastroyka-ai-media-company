@@ -14,6 +14,24 @@ export { OrchestratorPort } from './orchestrator-port.ts';
 export { ProviderAdapterUnavailableError, ProviderUnavailableError } from './provider-errors.ts';
 
 export {
+  EngineeringPolicyDeniedError,
+  EngineeringRunStateMachine,
+  EngineeringRunTransitionError,
+  assertAutonomousEngineeringActionAllowed,
+  type AutonomousEngineeringAction,
+  type EngineeringCheckConclusion,
+  type EngineeringCheckEvidence,
+  type EngineeringDecisionState,
+  type EngineeringModelSelection,
+  type EngineeringPullRequestEvidence,
+  type EngineeringRiskClass,
+  type EngineeringRunEvent,
+  type EngineeringRunState,
+  type EngineeringRunStatus,
+  type EngineeringTaskEnvelope,
+} from './engineering-run.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
