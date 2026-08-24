@@ -33,5 +33,18 @@ paths:
   /v1/model-exchange/route:
     post:
       operationId: routeModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../model-exchange/routing-request.schema.json
       responses:
-        "200": { description: Routing decision }
+        "200":
+          description: Persisted routing decision
+          content:
+            application/json:
+              schema:
+                $ref: ../model-exchange/routing-decision.schema.json
+        "400": { description: Malformed or unsupported routing request }
+        "422": { description: No eligible candidate or insufficient required redundancy }
