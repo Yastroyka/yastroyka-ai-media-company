@@ -7,11 +7,12 @@ import test, { type TestContext } from 'node:test';
 import {
   GitHubEngineeringAdapter,
   GitWorktreeAdapter,
-  type EngineeringCommandExecutor,
-  type EngineeringCommandRequest,
-  type EngineeringCommandResult,
   type EngineeringDraftPullRequestInput,
+  type EngineeringGitCommandExecutor,
+  type EngineeringGitCommandRequest,
+  type EngineeringGitCommandResult,
   type EngineeringTaskEnvelope,
+  type EngineeringWorkspace,
   type GitHubCiTransportResult,
   type GitHubDraftPullRequestTransportResult,
   type GitHubEngineeringTransport,
@@ -36,11 +37,11 @@ function envelope(overrides: Partial<EngineeringTaskEnvelope> = {}): Engineering
   };
 }
 
-class FakeCommandExecutor implements EngineeringCommandExecutor {
-  readonly requests: EngineeringCommandRequest[] = [];
+class FakeGitCommandExecutor implements EngineeringGitCommandExecutor {
+  readonly requests: EngineeringGitCommandRequest[] = [];
   headSha = BASE_SHA;
 
-  async run(request: EngineeringCommandRequest): Promise<EngineeringCommandResult> {
+  async run(request: EngineeringGitCommandRequest): Promise<EngineeringGitCommandResult> {
     this.requests.push(request);
     if (request.args[0] === 'rev-parse') {
       return { exitCode: 0, stdout: `${this.headSha}\n`, stderr: '' };
@@ -52,7 +53,7 @@ class FakeCommandExecutor implements EngineeringCommandExecutor {
 async function createWorktreeHarness(t: TestContext) {
   const repoRoot = await mkdtemp(join(tmpdir(), 'yastroyka-runner-'));
   const worktreeRoot = join(repoRoot, 'worktrees');
-  const executor = new FakeCommandExecutor();
+  const executor = new FakeGitCommandExecutor();
   const adapter = new GitWorktreeAdapter({ repoRoot, worktreeRoot, executor });
   t.after(async () => {
     await rm(repoRoot, { recursive: true, force: true });
@@ -134,19 +135,41 @@ test('worktree adapter blocks push when HEAD moved after validation', async (t) 
   );
 });
 
+test('worktree adapter rejects a forged workspace even when its path is contained', async (t) => {
+  const { adapter, executor, worktreeRoot } = await createWorktreeHarness(t);
+  const forged: EngineeringWorkspace = {
+    path: join(worktreeRoot, 'forged'),
+    branch: 'milestone-03/forged',
+    baseSha: BASE_SHA,
+  };
+
+  await assert.rejects(
+    () => adapter.pushFeatureBranch(forged, HEAD_SHA),
+    /not prepared by this adapter instance/u,
+  );
+  assert.equal(
+    executor.requests.some((request) => request.args[0] === 'push'),
+    false,
+  );
+});
+
 class FakeGitHubTransport implements GitHubEngineeringTransport {
   draftResult: GitHubDraftPullRequestTransportResult = {
     number: 12,
     headSha: HEAD_SHA,
+    headBranch: 'milestone-03/adapter-test',
+    baseBranch: 'main',
     draft: true,
   };
   ciResult: GitHubCiTransportResult = {
+    prNumber: 12,
     headSha: HEAD_SHA,
     status: 'completed',
     conclusion: 'success',
     reason: null,
   };
   publishedInput: EngineeringDraftPullRequestInput | null = null;
+  waitedPrNumber: number | null = null;
   waitedHead: string | null = null;
 
   async upsertDraftPullRequest(
@@ -156,7 +179,11 @@ class FakeGitHubTransport implements GitHubEngineeringTransport {
     return this.draftResult;
   }
 
-  async waitForCommitCi(headSha: string): Promise<GitHubCiTransportResult> {
+  async waitForPullRequestCi(
+    prNumber: number,
+    headSha: string,
+  ): Promise<GitHubCiTransportResult> {
+    this.waitedPrNumber = prNumber;
     this.waitedHead = headSha;
     return this.ciResult;
   }
@@ -172,7 +199,7 @@ function draftInput(): EngineeringDraftPullRequestInput {
   };
 }
 
-test('GitHub engineering adapter publishes Draft-only PRs and binds CI to exact head', async () => {
+test('GitHub engineering adapter publishes Draft-only PRs and binds CI to exact PR and head', async () => {
   const transport = new FakeGitHubTransport();
   const adapter = new GitHubEngineeringAdapter(transport);
 
@@ -181,6 +208,7 @@ test('GitHub engineering adapter publishes Draft-only PRs and binds CI to exact 
 
   assert.deepEqual(pullRequest, { number: 12, headSha: HEAD_SHA, draft: true });
   assert.equal(transport.publishedInput?.baseBranch, 'main');
+  assert.equal(transport.waitedPrNumber, 12);
   assert.equal(transport.waitedHead, HEAD_SHA);
   assert.deepEqual(ci, {
     headSha: HEAD_SHA,
@@ -191,17 +219,33 @@ test('GitHub engineering adapter publishes Draft-only PRs and binds CI to exact 
 
 test('GitHub engineering adapter fails closed if transport returns non-Draft PR', async () => {
   const transport = new FakeGitHubTransport();
-  transport.draftResult = { number: 12, headSha: HEAD_SHA, draft: false };
+  transport.draftResult = { ...transport.draftResult, draft: false };
   const adapter = new GitHubEngineeringAdapter(transport);
 
   await assert.rejects(() => adapter.publishDraftPullRequest(draftInput()), /non-Draft PR/u);
 });
 
-test('GitHub engineering adapter rejects non-terminal or wrong-head CI evidence', async () => {
+test('GitHub engineering adapter rejects wrong Draft PR branches or head', async () => {
+  const transport = new FakeGitHubTransport();
+  const adapter = new GitHubEngineeringAdapter(transport);
+
+  transport.draftResult = { ...transport.draftResult, baseBranch: 'release' };
+  await assert.rejects(() => adapter.publishDraftPullRequest(draftInput()), /unexpected branches/u);
+
+  transport.draftResult = {
+    ...transport.draftResult,
+    baseBranch: 'main',
+    headSha: OTHER_HEAD,
+  };
+  await assert.rejects(() => adapter.publishDraftPullRequest(draftInput()), /different head SHA/u);
+});
+
+test('GitHub engineering adapter rejects non-terminal, wrong-PR, or wrong-head CI evidence', async () => {
   const transport = new FakeGitHubTransport();
   const adapter = new GitHubEngineeringAdapter(transport);
 
   transport.ciResult = {
+    prNumber: 12,
     headSha: HEAD_SHA,
     status: 'in_progress',
     conclusion: null,
@@ -210,6 +254,16 @@ test('GitHub engineering adapter rejects non-terminal or wrong-head CI evidence'
   await assert.rejects(() => adapter.waitForCi(12, HEAD_SHA), /non-terminal evidence/u);
 
   transport.ciResult = {
+    prNumber: 13,
+    headSha: HEAD_SHA,
+    status: 'completed',
+    conclusion: 'success',
+    reason: null,
+  };
+  await assert.rejects(() => adapter.waitForCi(12, HEAD_SHA), /different pull request/u);
+
+  transport.ciResult = {
+    prNumber: 12,
     headSha: OTHER_HEAD,
     status: 'completed',
     conclusion: 'success',
