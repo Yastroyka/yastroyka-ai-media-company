@@ -49,11 +49,14 @@ interface RunnerHarnessOptions {
   readonly reviewPassed?: boolean;
   readonly reviewReason?: string | null;
   readonly draftHeadOverride?: string;
+  readonly validationHeadMutation?: string;
+  readonly reviewHeadMutation?: string;
 }
 
 function createHarness(options: RunnerHarnessOptions = {}) {
   const authorizationActions: AutonomousEngineeringAction[] = [];
   const workerInputs: EngineeringWorkerInput[] = [];
+  const reviewHeads: string[] = [];
   const pushedHeads: string[] = [];
   const draftHeads: string[] = [];
   const ciHeads: string[] = [];
@@ -101,12 +104,19 @@ function createHarness(options: RunnerHarnessOptions = {}) {
     async validate() {
       const result = options.validationResults?.[validationIndex] ?? PASSED_CHECKS;
       validationIndex += 1;
+      if (options.validationHeadMutation !== undefined) {
+        currentHead = options.validationHeadMutation;
+      }
       return result;
     },
   };
 
   const review: EngineeringReviewPort = {
-    async review() {
+    async review(_workspace, headSha) {
+      reviewHeads.push(headSha);
+      if (options.reviewHeadMutation !== undefined) {
+        currentHead = options.reviewHeadMutation;
+      }
       return {
         passed: options.reviewPassed ?? true,
         reason: options.reviewReason ?? null,
@@ -139,6 +149,7 @@ function createHarness(options: RunnerHarnessOptions = {}) {
     runner: new EngineeringRunner({ authorization, workspace, worker, validation, review, github }),
     authorizationActions,
     workerInputs,
+    reviewHeads,
     pushedHeads,
     draftHeads,
     ciHeads,
@@ -156,6 +167,7 @@ test('runner reaches owner decision through a Draft PR and exact-head CI', async
     headSha: HEAD_ONE,
     draft: true,
   });
+  assert.deepEqual(harness.reviewHeads, [HEAD_ONE]);
   assert.deepEqual(harness.pushedHeads, [HEAD_ONE]);
   assert.deepEqual(harness.draftHeads, [HEAD_ONE]);
   assert.deepEqual(harness.ciHeads, [HEAD_ONE]);
@@ -190,6 +202,7 @@ test('failed validation feeds one bounded correction attempt back to the worker'
     harness.workerInputs[1]?.correctionReason,
     'Required validation check quality concluded failed.',
   );
+  assert.deepEqual(harness.reviewHeads, [HEAD_TWO]);
   assert.deepEqual(harness.pushedHeads, [HEAD_TWO]);
 });
 
@@ -207,6 +220,7 @@ test('failed exact-head CI can be corrected within the same bounded run', async 
     harness.workerInputs[1]?.correctionReason,
     `GitHub CI failed for exact head ${HEAD_ONE}.`,
   );
+  assert.deepEqual(harness.reviewHeads, [HEAD_ONE, HEAD_TWO]);
   assert.deepEqual(harness.pushedHeads, [HEAD_ONE, HEAD_TWO]);
   assert.deepEqual(harness.draftHeads, [HEAD_ONE, HEAD_TWO]);
   assert.deepEqual(harness.ciHeads, [HEAD_ONE, HEAD_TWO]);
@@ -215,6 +229,35 @@ test('failed exact-head CI can be corrected within the same bounded run', async 
     headSha: HEAD_TWO,
     draft: true,
   });
+});
+
+test('workspace HEAD change during validation blocks before review or push', async () => {
+  const harness = createHarness({ validationHeadMutation: OTHER_HEAD });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(result.state.blockerReason, 'Engineering workspace HEAD changed during validation.');
+  assert.deepEqual(harness.reviewHeads, []);
+  assert.deepEqual(harness.pushedHeads, []);
+  assert.deepEqual(harness.draftHeads, []);
+  assert.deepEqual(harness.ciHeads, []);
+});
+
+test('workspace HEAD change during review blocks before push', async () => {
+  const harness = createHarness({ reviewHeadMutation: OTHER_HEAD });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(
+    result.state.blockerReason,
+    'Engineering workspace HEAD changed during independent review.',
+  );
+  assert.deepEqual(harness.reviewHeads, [HEAD_ONE]);
+  assert.deepEqual(harness.pushedHeads, []);
+  assert.deepEqual(harness.draftHeads, []);
+  assert.deepEqual(harness.ciHeads, []);
 });
 
 test('authorization denial fails closed before the denied mutation', async () => {
