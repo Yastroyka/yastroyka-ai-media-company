@@ -19,6 +19,8 @@ export {
   EngineeringRunTransitionError,
   assertAutonomousEngineeringActionAllowed,
   type AutonomousEngineeringAction,
+  type EngineeringCheckConclusion,
+  type EngineeringCheckEvidence,
   type EngineeringDecisionState,
   type EngineeringModelSelection,
   type EngineeringPullRequestEvidence,
