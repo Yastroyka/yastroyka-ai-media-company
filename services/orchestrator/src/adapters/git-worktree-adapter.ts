@@ -171,10 +171,14 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
       baseSha: envelope.baseSha,
     });
 
-    const headSha = await this.readHead(workspace);
-    if (headSha !== envelope.baseSha) {
+    try {
+      const headSha = await this.readHead(workspace);
+      if (headSha !== envelope.baseSha) {
+        throw new Error('Created worktree does not point to the exact approved base SHA.');
+      }
+    } catch (error) {
       this.#preparedWorkspaces.delete(worktreePath);
-      throw new Error('Created worktree does not point to the exact approved base SHA.');
+      throw error;
     }
 
     return workspace;
