@@ -62,6 +62,7 @@ export interface EngineeringRunState {
 }
 
 export type EngineeringRunEvent =
+  | { readonly type: 'MODEL_SELECTED'; readonly selection: EngineeringModelSelection }
   | { readonly type: 'START' }
   | { readonly type: 'IMPLEMENTATION_READY' }
   | { readonly type: 'VALIDATION_FAILED'; readonly reason: string }
@@ -124,6 +125,26 @@ function requireReason(value: string): void {
   }
 }
 
+function validateModelSelection(selection: EngineeringModelSelection): EngineeringModelSelection {
+  requireIdentifier(selection.provider, 'modelSelection.provider');
+  requireIdentifier(selection.model, 'modelSelection.model');
+  requireIdentifier(selection.whyThisModel, 'modelSelection.whyThisModel');
+
+  const uniqueFallbackProviders = new Set<string>();
+  for (const provider of selection.fallbackProviders) {
+    requireIdentifier(provider, 'modelSelection.fallbackProvider');
+    if (uniqueFallbackProviders.has(provider)) {
+      throw new Error(`modelSelection contains a duplicate fallback provider: ${provider}.`);
+    }
+    uniqueFallbackProviders.add(provider);
+  }
+
+  return {
+    ...selection,
+    fallbackProviders: [...selection.fallbackProviders],
+  };
+}
+
 function validateEnvelope(envelope: EngineeringTaskEnvelope): void {
   requireIdentifier(envelope.runId, 'runId');
   requireIdentifier(envelope.taskId, 'taskId');
@@ -154,6 +175,10 @@ function validateEnvelope(envelope: EngineeringTaskEnvelope): void {
       throw new Error(`requiredChecks contains a duplicate check: ${check}.`);
     }
     uniqueChecks.add(check);
+  }
+
+  if (envelope.modelSelection !== null) {
+    validateModelSelection(envelope.modelSelection);
   }
 }
 
@@ -235,12 +260,7 @@ export class EngineeringRunStateMachine {
       requiredChecks: [...envelope.requiredChecks],
       validationEvidence: [],
       modelSelection:
-        envelope.modelSelection === null
-          ? null
-          : {
-              ...envelope.modelSelection,
-              fallbackProviders: [...envelope.modelSelection.fallbackProviders],
-            },
+        envelope.modelSelection === null ? null : validateModelSelection(envelope.modelSelection),
       pullRequest: null,
       blockerReason: null,
     };
@@ -258,7 +278,17 @@ export class EngineeringRunStateMachine {
 
     switch (this.#state.status) {
       case 'approved':
+        if (event.type === 'MODEL_SELECTED') {
+          if (this.#state.modelSelection !== null) {
+            throw new Error('Engineering run already has an approved model selection.');
+          }
+          return this.#replace({ modelSelection: validateModelSelection(event.selection) });
+        }
+
         if (event.type === 'START') {
+          if (this.#state.modelSelection === null) {
+            throw new Error('Engineering run cannot start without an approved model selection.');
+          }
           return this.#replace({ status: 'executing', attempt: 1 });
         }
         break;
@@ -370,6 +400,7 @@ export class EngineeringRunStateMachine {
         | 'decisionState'
         | 'attempt'
         | 'validationEvidence'
+        | 'modelSelection'
         | 'pullRequest'
         | 'blockerReason'
       >
