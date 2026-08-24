@@ -266,7 +266,10 @@ export class EngineeringRunner {
         }
       }
     } catch {
-      if (machine.state.status !== 'blocked' && machine.state.status !== 'ready_for_owner_decision') {
+      if (
+        machine.state.status !== 'blocked' &&
+        machine.state.status !== 'ready_for_owner_decision'
+      ) {
         machine.apply({
           type: 'BLOCK',
           reason: `Engineering runner failed closed during ${stage}.`,
