@@ -155,12 +155,6 @@ function validationFailureReason(
   return null;
 }
 
-function safeReviewReason(reason: string | null): string {
-  return reason === null || reason.trim().length === 0
-    ? 'Independent engineering review did not pass.'
-    : reason;
-}
-
 export class EngineeringRunner {
   readonly #dependencies: EngineeringRunnerDependencies;
 
@@ -212,7 +206,10 @@ export class EngineeringRunner {
         requireSha(headBeforeReview, 'headBeforeReview');
         const review = await this.#dependencies.review.review(workspace, headBeforeReview);
         if (!review.passed) {
-          machine.apply({ type: 'BLOCK', reason: safeReviewReason(review.reason) });
+          machine.apply({
+            type: 'BLOCK',
+            reason: 'Independent engineering review reported blocking findings.',
+          });
           break;
         }
         machine.apply({ type: 'REVIEW_PASSED' });
@@ -257,10 +254,7 @@ export class EngineeringRunner {
           break;
         }
 
-        const ciFailureReason =
-          ci.reason === null || ci.reason.trim().length === 0
-            ? 'GitHub CI failed for the exact Draft PR head.'
-            : ci.reason;
+        const ciFailureReason = `GitHub CI failed for exact head ${ci.headSha}.`;
         const state = machine.apply({
           type: 'CI_FAILED',
           headSha: ci.headSha,
