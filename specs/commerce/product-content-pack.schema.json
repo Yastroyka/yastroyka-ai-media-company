@@ -11,25 +11,91 @@
   ],
   "properties": {
     "product": {
-      "type": "object"
+      "$ref": "catalog-product.schema.json"
     },
     "offer": {
-      "type": "object"
+      "$ref": "seller-offer.schema.json"
     },
     "offer_snapshot": {
-      "type": "object"
+      "$ref": "offer-snapshot.schema.json"
     },
     "rights": {
-      "type": "object"
+      "type": "object",
+      "required": [
+        "source",
+        "verified_at",
+        "allowed_channels"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "allowed_channels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "claims": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "claim",
+          "source",
+          "verified_at"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "verified_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     },
     "tracking": {
-      "type": "object"
+      "type": "object",
+      "required": [
+        "source_mode",
+        "product_id",
+        "offer_id",
+        "snapshot_captured_at",
+        "built_at"
+      ],
+      "properties": {
+        "source_mode": {
+          "enum": [
+            "real",
+            "staging"
+          ]
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "offer_id": {
+          "type": "string"
+        },
+        "snapshot_captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "built_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     }
   }
 }

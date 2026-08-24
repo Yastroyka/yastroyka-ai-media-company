@@ -83,6 +83,18 @@ jobs:
       - name: Run Temporal workflow tests
         run: pnpm --filter @yastroyka/temporal-workflows run test
 
+      - name: Typecheck commerce SDK
+        run: pnpm --filter @yastroyka/commerce-sdk run typecheck
+
+      - name: Run commerce SDK tests
+        run: pnpm --filter @yastroyka/commerce-sdk run test
+
+      - name: Typecheck Commerce Content Bridge
+        run: pnpm --filter @yastroyka/commerce-bridge run typecheck
+
+      - name: Run Commerce Content Bridge tests
+        run: pnpm --filter @yastroyka/commerce-bridge run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
