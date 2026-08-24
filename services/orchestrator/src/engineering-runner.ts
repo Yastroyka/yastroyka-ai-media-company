@@ -184,12 +184,23 @@ export class EngineeringRunner {
         machine.apply({ type: 'IMPLEMENTATION_READY' });
 
         stage = 'validation';
+        const headBeforeValidation = await this.#dependencies.workspace.readHead(workspace);
+        requireSha(headBeforeValidation, 'headBeforeValidation');
         const checks = await this.#dependencies.validation.validate(
           workspace,
           machine.state.requiredChecks,
         );
-        const validationFailure = validationFailureReason(machine.state.requiredChecks, checks);
+        const headAfterValidation = await this.#dependencies.workspace.readHead(workspace);
+        requireSha(headAfterValidation, 'headAfterValidation');
+        if (headAfterValidation !== headBeforeValidation) {
+          machine.apply({
+            type: 'BLOCK',
+            reason: 'Engineering workspace HEAD changed during validation.',
+          });
+          break;
+        }
 
+        const validationFailure = validationFailureReason(machine.state.requiredChecks, checks);
         if (validationFailure !== null) {
           const state = machine.apply({ type: 'VALIDATION_FAILED', reason: validationFailure });
           correctionReason = validationFailure;
@@ -202,9 +213,7 @@ export class EngineeringRunner {
         machine.apply({ type: 'VALIDATION_PASSED', checks });
 
         stage = 'independent review';
-        const headBeforeReview = await this.#dependencies.workspace.readHead(workspace);
-        requireSha(headBeforeReview, 'headBeforeReview');
-        const review = await this.#dependencies.review.review(workspace, headBeforeReview);
+        const review = await this.#dependencies.review.review(workspace, headAfterValidation);
         if (!review.passed) {
           machine.apply({
             type: 'BLOCK',
@@ -212,11 +221,19 @@ export class EngineeringRunner {
           });
           break;
         }
+        const headAfterReview = await this.#dependencies.workspace.readHead(workspace);
+        requireSha(headAfterReview, 'headAfterReview');
+        if (headAfterReview !== headAfterValidation) {
+          machine.apply({
+            type: 'BLOCK',
+            reason: 'Engineering workspace HEAD changed during independent review.',
+          });
+          break;
+        }
         machine.apply({ type: 'REVIEW_PASSED' });
 
         stage = 'feature branch push';
-        const headSha = await this.#dependencies.workspace.readHead(workspace);
-        requireSha(headSha, 'headSha');
+        const headSha = headAfterReview;
         await this.#authorize('push_feature_branch', envelope);
         await this.#dependencies.workspace.pushFeatureBranch(workspace, headSha);
 
