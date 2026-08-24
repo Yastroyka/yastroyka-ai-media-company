@@ -88,11 +88,7 @@ test('feature push is exact-head, feature-only, and never force pushes', async (
   await adapter.pushFeatureBranch(workspace, HEAD_SHA);
 
   const push = executor.requests.find((request) => request.args[0] === 'push');
-  assert.deepEqual(push?.args, [
-    'push',
-    'origin',
-    `HEAD:refs/heads/${workspace.branch}`,
-  ]);
+  assert.deepEqual(push?.args, ['push', 'origin', `HEAD:refs/heads/${workspace.branch}`]);
   assert.equal(push?.args.includes('--force'), false);
   assert.equal(push?.args.includes('--force-with-lease'), false);
 });
@@ -108,7 +104,9 @@ test('worktree cleanup removes only the isolated worktree and preserves the bran
   );
   assert.deepEqual(remove?.args, ['worktree', 'remove', workspace.path]);
   assert.equal(
-    executor.requests.some((request) => request.args[0] === 'branch' && request.args.includes('-D')),
+    executor.requests.some(
+      (request) => request.args[0] === 'branch' && request.args.includes('-D'),
+    ),
     false,
   );
 });
@@ -130,7 +128,10 @@ test('worktree adapter blocks push when HEAD moved after validation', async (t) 
     () => adapter.pushFeatureBranch(workspace, HEAD_SHA),
     /HEAD moved before feature branch push/u,
   );
-  assert.equal(executor.requests.some((request) => request.args[0] === 'push'), false);
+  assert.equal(
+    executor.requests.some((request) => request.args[0] === 'push'),
+    false,
+  );
 });
 
 class FakeGitHubTransport implements GitHubEngineeringTransport {
