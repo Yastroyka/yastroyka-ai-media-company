@@ -184,6 +184,7 @@ export class EngineeringRunner {
         machine.apply({ type: 'IMPLEMENTATION_READY' });
 
         stage = 'validation';
+        await this.#authorize('run_validation', envelope);
         const headBeforeValidation = await this.#dependencies.workspace.readHead(workspace);
         requireSha(headBeforeValidation, 'headBeforeValidation');
         const checks = await this.#dependencies.validation.validate(
