@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  EngineeringProviderUnavailableError,
   EngineeringRunner,
   type AutonomousEngineeringAction,
   type EngineeringAuthorizationPort,
   type EngineeringCheckEvidence,
   type EngineeringGitHubPort,
+  type EngineeringModelCandidate,
+  type EngineeringModelRoutingPort,
   type EngineeringReviewPort,
+  type EngineeringRunEvidenceRecord,
   type EngineeringTaskEnvelope,
   type EngineeringValidationPort,
   type EngineeringWorkerInput,
@@ -16,10 +20,22 @@ import {
   type EngineeringWorkspacePort,
 } from '../src/index.ts';
 
-const BASE_SHA = '68ea25ab85f000a8063ea7b1bc4c71df74d538c4';
+const BASE_SHA = 'a8cc2df1ce99e140f7d1e2ce093ff0a57bcde453';
 const HEAD_ONE = '1111111111111111111111111111111111111111';
 const HEAD_TWO = '2222222222222222222222222222222222222222';
 const OTHER_HEAD = '3333333333333333333333333333333333333333';
+const RECORDED_AT = '2026-08-24T21:30:00.000Z';
+
+const PRIMARY_MODEL: EngineeringModelCandidate = {
+  provider: 'openai',
+  model: 'codex-engineering',
+  revision: 'r1',
+};
+const FALLBACK_MODEL: EngineeringModelCandidate = {
+  provider: 'deepseek',
+  model: 'deepseek-coder',
+  revision: 'r1',
+};
 
 const PASSED_CHECKS: readonly EngineeringCheckEvidence[] = [
   { name: 'quality', conclusion: 'passed' },
@@ -51,6 +67,10 @@ interface RunnerHarnessOptions {
   readonly draftHeadOverride?: string;
   readonly validationHeadMutation?: string;
   readonly reviewHeadMutation?: string;
+  readonly unavailableModels?: readonly string[];
+  readonly workerErrorModel?: string;
+  readonly routingFailure?: boolean;
+  readonly evidenceFailureEvent?: EngineeringRunEvidenceRecord['eventType'];
 }
 
 function createHarness(options: RunnerHarnessOptions = {}) {
@@ -60,7 +80,10 @@ function createHarness(options: RunnerHarnessOptions = {}) {
   const pushedHeads: string[] = [];
   const draftHeads: string[] = [];
   const ciHeads: string[] = [];
+  const evidenceRecords: EngineeringRunEvidenceRecord[] = [];
   let validationCalls = 0;
+  let workspacePrepareCalls = 0;
+  let routingCalls = 0;
   let currentHead = BASE_SHA;
   let validationIndex = 0;
   let ciIndex = 0;
@@ -82,6 +105,7 @@ function createHarness(options: RunnerHarnessOptions = {}) {
 
   const workspace: EngineeringWorkspacePort = {
     async prepare() {
+      workspacePrepareCalls += 1;
       return workspaceValue;
     },
     async readHead() {
@@ -94,9 +118,29 @@ function createHarness(options: RunnerHarnessOptions = {}) {
     async dispose() {},
   };
 
+  const modelRouting: EngineeringModelRoutingPort = {
+    async route() {
+      routingCalls += 1;
+      if (options.routingFailure === true) {
+        throw new Error('no eligible candidate');
+      }
+      return {
+        winner: PRIMARY_MODEL,
+        fallbacks: [FALLBACK_MODEL],
+        whyThisModel: 'Primary engineering model ranked first with an approved fallback.',
+      };
+    },
+  };
+
   const worker: EngineeringWorkerPort = {
     async implement(input) {
       workerInputs.push(input);
+      if (options.workerErrorModel === input.model.model) {
+        throw new Error('ordinary worker failure');
+      }
+      if (options.unavailableModels?.includes(input.model.model) === true) {
+        throw new EngineeringProviderUnavailableError();
+      }
       currentHead = input.attempt === 1 ? HEAD_ONE : HEAD_TWO;
     },
   };
@@ -147,31 +191,64 @@ function createHarness(options: RunnerHarnessOptions = {}) {
     },
   };
 
+  const evidence = {
+    async record(record: EngineeringRunEvidenceRecord) {
+      if (record.eventType === options.evidenceFailureEvent) {
+        throw new Error('evidence store unavailable');
+      }
+      evidenceRecords.push(structuredClone(record));
+    },
+  };
+
   return {
-    runner: new EngineeringRunner({ authorization, workspace, worker, validation, review, github }),
+    runner: new EngineeringRunner({
+      authorization,
+      workspace,
+      modelRouting,
+      worker,
+      validation,
+      review,
+      github,
+      evidence,
+      now: () => new Date(RECORDED_AT),
+    }),
     authorizationActions,
     workerInputs,
     reviewHeads,
     pushedHeads,
     draftHeads,
     ciHeads,
+    evidenceRecords,
     get validationCalls() {
       return validationCalls;
+    },
+    get workspacePrepareCalls() {
+      return workspacePrepareCalls;
+    },
+    get routingCalls() {
+      return routingCalls;
     },
   };
 }
 
-test('runner reaches owner decision through a Draft PR and exact-head CI', async () => {
+test('runner reaches owner decision through routed model, Draft PR, exact-head CI, and evidence', async () => {
   const harness = createHarness();
   const result = await harness.runner.run(envelope());
 
   assert.equal(result.state.status, 'ready_for_owner_decision');
   assert.equal(result.state.decisionState, 'READY_FOR_OWNER_DECISION');
+  assert.deepEqual(result.state.modelSelection, {
+    provider: 'openai',
+    model: 'codex-engineering',
+    whyThisModel: 'Primary engineering model ranked first with an approved fallback.',
+    fallbackProviders: ['deepseek'],
+  });
   assert.deepEqual(result.state.pullRequest, {
     number: 11,
     headSha: HEAD_ONE,
     draft: true,
   });
+  assert.deepEqual(harness.workerInputs.map((input) => input.model), [PRIMARY_MODEL]);
   assert.deepEqual(harness.reviewHeads, [HEAD_ONE]);
   assert.deepEqual(harness.pushedHeads, [HEAD_ONE]);
   assert.deepEqual(harness.draftHeads, [HEAD_ONE]);
@@ -183,6 +260,91 @@ test('runner reaches owner decision through a Draft PR and exact-head CI', async
     'create_or_update_draft_pr',
     'observe_ci',
   ]);
+  assert.equal(harness.evidenceRecords[0]?.eventType, 'model_selected');
+  assert.equal(harness.evidenceRecords.at(-1)?.eventType, 'ci_passed');
+  assert.deepEqual(
+    harness.evidenceRecords.map((record) => record.sequence),
+    harness.evidenceRecords.map((_record, index) => index + 1),
+  );
+  assert.equal(JSON.stringify(harness.evidenceRecords).includes('untrusted raw CI output'), false);
+});
+
+test('provider outage switches to approved fallback without consuming correction attempt', async () => {
+  const harness = createHarness({ unavailableModels: [PRIMARY_MODEL.model] });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'ready_for_owner_decision');
+  assert.deepEqual(
+    harness.workerInputs.map((input) => [input.model.model, input.attempt]),
+    [
+      [PRIMARY_MODEL.model, 1],
+      [FALLBACK_MODEL.model, 1],
+    ],
+  );
+  const fallbackEvidence = harness.evidenceRecords.find(
+    (record) => record.eventType === 'model_fallback',
+  );
+  assert.deepEqual(fallbackEvidence?.payload.activeModel, PRIMARY_MODEL);
+  assert.equal(harness.validationCalls, 1);
+});
+
+test('all routed models unavailable fails closed before validation', async () => {
+  const harness = createHarness({
+    unavailableModels: [PRIMARY_MODEL.model, FALLBACK_MODEL.model],
+  });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(
+    result.state.blockerReason,
+    'No eligible engineering model remained available for worker execution.',
+  );
+  assert.equal(harness.validationCalls, 0);
+  assert.deepEqual(
+    harness.workerInputs.map((input) => input.model.model),
+    [PRIMARY_MODEL.model, FALLBACK_MODEL.model],
+  );
+  assert.equal(harness.evidenceRecords.at(-1)?.eventType, 'blocked');
+});
+
+test('routing failure blocks before repository mutation', async () => {
+  const harness = createHarness({ routingFailure: true });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during model routing.');
+  assert.equal(harness.routingCalls, 1);
+  assert.equal(harness.workspacePrepareCalls, 0);
+  assert.deepEqual(harness.authorizationActions, []);
+  assert.equal(harness.evidenceRecords.at(-1)?.eventType, 'blocked');
+});
+
+test('ordinary worker failure does not silently activate fallback', async () => {
+  const harness = createHarness({ workerErrorModel: PRIMARY_MODEL.model });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during worker implementation.');
+  assert.deepEqual(harness.workerInputs.map((input) => input.model.model), [PRIMARY_MODEL.model]);
+  assert.equal(
+    harness.evidenceRecords.some((record) => record.eventType === 'model_fallback'),
+    false,
+  );
+});
+
+test('durable evidence failure blocks before subsequent repository mutation', async () => {
+  const harness = createHarness({ evidenceFailureEvent: 'model_selected' });
+
+  const result = await harness.runner.run(envelope());
+
+  assert.equal(result.state.status, 'blocked');
+  assert.equal(result.state.blockerReason, 'Engineering runner failed closed during model routing.');
+  assert.equal(harness.workspacePrepareCalls, 0);
+  assert.deepEqual(harness.authorizationActions, []);
 });
 
 test('failed validation feeds one bounded correction attempt back to the worker', async () => {
@@ -308,7 +470,7 @@ test('Draft PR head mismatch blocks CI observation', async () => {
   assert.deepEqual(harness.ciHeads, []);
 });
 
-test('untrusted review text is not copied into canonical blocker state', async () => {
+test('untrusted review text is not copied into canonical blocker or evidence state', async () => {
   const harness = createHarness({
     reviewPassed: false,
     reviewReason: 'token=should-not-enter-run-state',
@@ -322,5 +484,6 @@ test('untrusted review text is not copied into canonical blocker state', async (
     'Independent engineering review reported blocking findings.',
   );
   assert.doesNotMatch(result.state.blockerReason ?? '', /token=/u);
+  assert.equal(JSON.stringify(harness.evidenceRecords).includes('token=should-not-enter-run-state'), false);
   assert.deepEqual(harness.pushedHeads, []);
 });
