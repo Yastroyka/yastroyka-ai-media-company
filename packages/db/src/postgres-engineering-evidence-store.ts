@@ -110,7 +110,9 @@ function canonicalizeJson(value: unknown): unknown {
   );
 }
 
-function validateRecord(record: DurableEngineeringEvidenceRecord): DurableEngineeringEvidenceRecord {
+function validateRecord(
+  record: DurableEngineeringEvidenceRecord,
+): DurableEngineeringEvidenceRecord {
   requireIdentifier(record.runId, 'runId');
   requireSequence(record.sequence);
   requireEventType(record.eventType);
