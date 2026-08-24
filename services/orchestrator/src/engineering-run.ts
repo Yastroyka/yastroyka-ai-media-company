@@ -10,7 +10,10 @@ export type EngineeringRunStatus =
   | 'ready_for_owner_decision'
   | 'blocked';
 
-export type EngineeringDecisionState = 'PENDING' | 'READY_FOR_OWNER_DECISION' | 'BLOCKED';
+export type EngineeringDecisionState =
+  | 'PENDING'
+  | 'READY_FOR_OWNER_DECISION'
+  | 'BLOCKED';
 
 export type EngineeringCheckConclusion = 'passed' | 'failed' | 'not_run';
 
@@ -65,7 +68,10 @@ export type EngineeringRunEvent =
   | { readonly type: 'START' }
   | { readonly type: 'IMPLEMENTATION_READY' }
   | { readonly type: 'VALIDATION_FAILED'; readonly reason: string }
-  | { readonly type: 'VALIDATION_PASSED'; readonly checks: readonly EngineeringCheckEvidence[] }
+  | {
+      readonly type: 'VALIDATION_PASSED';
+      readonly checks: readonly EngineeringCheckEvidence[];
+    }
   | { readonly type: 'REVIEW_PASSED' }
   | {
       readonly type: 'DRAFT_PR_PUBLISHED';
@@ -132,7 +138,11 @@ function validateEnvelope(envelope: EngineeringTaskEnvelope): void {
     throw new Error('Engineering runs must use an isolated feature branch, never main.');
   }
 
-  if (!Number.isInteger(envelope.maxAttempts) || envelope.maxAttempts < 1 || envelope.maxAttempts > 5) {
+  if (
+    !Number.isInteger(envelope.maxAttempts) ||
+    envelope.maxAttempts < 1 ||
+    envelope.maxAttempts > 5
+  ) {
     throw new Error('maxAttempts must be an integer between 1 and 5.');
   }
 
@@ -201,7 +211,9 @@ export class EngineeringRunTransitionError extends Error {
   }
 }
 
-export function assertAutonomousEngineeringActionAllowed(action: AutonomousEngineeringAction): void {
+export function assertAutonomousEngineeringActionAllowed(
+  action: AutonomousEngineeringAction,
+): void {
   if (!ALLOWED_AUTONOMOUS_ACTIONS.has(action)) {
     throw new EngineeringPolicyDeniedError(action);
   }
@@ -262,7 +274,10 @@ export class EngineeringRunStateMachine {
 
       case 'validating':
         if (event.type === 'VALIDATION_PASSED') {
-          const validationEvidence = validatePassedChecks(this.#state.requiredChecks, event.checks);
+          const validationEvidence = validatePassedChecks(
+            this.#state.requiredChecks,
+            event.checks,
+          );
           return this.#replace({ status: 'reviewing', validationEvidence });
         }
 
@@ -316,7 +331,9 @@ export class EngineeringRunStateMachine {
 
         if (event.type === 'CI_FAILED') {
           requireReason(event.reason);
-          return this.#retryOrBlock(`CI failed for exact head ${event.headSha}: ${event.reason}`);
+          return this.#retryOrBlock(
+            `CI failed for exact head ${event.headSha}: ${event.reason}`,
+          );
         }
         break;
 
