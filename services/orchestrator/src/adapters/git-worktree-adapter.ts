@@ -208,6 +208,17 @@ export class GitWorktreeAdapter implements EngineeringWorkspacePort {
       throw new Error('Worktree HEAD moved before feature branch push.');
     }
 
+    const status = await this.#runOrThrow(
+      {
+        cwd: workspacePath,
+        args: ['status', '--porcelain=v1', '--untracked-files=all'],
+      },
+      'worktree cleanliness verification',
+    );
+    if (status.stdout.trim().length !== 0) {
+      throw new Error('Engineering worktree must be clean before feature branch push.');
+    }
+
     await this.#runOrThrow(
       {
         cwd: workspacePath,
