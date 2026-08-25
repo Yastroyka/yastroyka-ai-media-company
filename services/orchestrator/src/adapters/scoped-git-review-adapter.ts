@@ -21,11 +21,13 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const DEFAULT_FORBIDDEN_PREFIXES = [
   '.env',
   '.git/',
-  '.github/workflows/',
+  '.github/',
   '.codex/',
+  '.ai/',
   'AGENTS.md',
   'SECURITY.md',
   'docs/PROJECT_CONSTITUTION.md',
+  'docs/ENGINEERING_RULES.md',
   'docs/agentic/AGENT_EXECUTION_CONTRACT.md',
 ];
 
