@@ -26,6 +26,15 @@ actors:
       - production:write
       - secrets:read_raw
 
+  human_owner:
+    default_scopes:
+      - publication:approve
+
+  publishing_service:
+    default_scopes:
+      - publication:prepare
+      - publication:result
+
 permissions:
   - id: commerce-read
     resource: commerce
@@ -80,6 +89,24 @@ permissions:
     action: product_master_write
     required_scope: production:write
     risk_class: R2
+
+  - id: publication-decide-approval
+    resource: publication
+    action: decide_approval
+    required_scope: publication:approve
+    risk_class: R3
+
+  - id: publication-prepare
+    resource: publication
+    action: prepare
+    required_scope: publication:prepare
+    risk_class: R3
+
+  - id: publication-record-result
+    resource: publication
+    action: record_result
+    required_scope: publication:result
+    risk_class: R3
 
 rules:
   - id: commerce-production-read-only
