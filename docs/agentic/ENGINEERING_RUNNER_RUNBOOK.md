@@ -36,8 +36,11 @@ Missing required checks return `not_run`; they are never reported as PASS. Mutat
 `ScopedGitReviewAdapter` verifies:
 
 - the reviewed worktree still points to the exact reviewed head SHA;
+- the reviewed head is descended from the exact approved base SHA;
+- rename detection is disabled for scope accounting so both sides of a move remain visible to policy;
 - changed files are inside approved path prefixes;
-- forbidden paths such as `.env`, `.git/`, and `.github/workflows/` are rejected by default;
+- built-in governance blocks are non-bypassable and always include `.env*`, `.git/`, `.github/`, `.codex/`, `.ai/`, `AGENTS.md`, `SECURITY.md`, the Project Constitution, Engineering Rules, and the Agent Execution Contract;
+- caller-supplied forbidden prefixes may only add restrictions, never replace the built-in governance blocks;
 - an empty or unreadable diff fails closed.
 
 This adapter is deterministic scope/security review for the v0.1 dry-run. It does not replace later model-assisted security review where separately approved.
