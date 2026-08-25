@@ -564,7 +564,10 @@ export class PostgresPublishingStore {
     this.#clock = options.clock ?? (() => new Date());
   }
 
-  async #requireAuthorization(actorId: string, action: PublishingAuthorizationAction): Promise<void> {
+  async #requireAuthorization(
+    actorId: string,
+    action: PublishingAuthorizationAction,
+  ): Promise<void> {
     const decision = await authorizeAndAudit(
       this.#authorizationPolicy,
       {
