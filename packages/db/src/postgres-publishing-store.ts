@@ -195,9 +195,7 @@ function requireFreshnessPolicy(policy: PublishingFreshnessPolicy): PublishingFr
     policy.refreshGraceSeconds < 0 ||
     policy.refreshGraceSeconds > 86_400
   ) {
-    throw new Error(
-      'freshnessPolicy.refreshGraceSeconds must be an integer between 0 and 86400.',
-    );
+    throw new Error('freshnessPolicy.refreshGraceSeconds must be an integer between 0 and 86400.');
   }
   return { refreshGraceSeconds: policy.refreshGraceSeconds };
 }
@@ -294,7 +292,9 @@ function withPublishingMetadata(
   return nextPayload;
 }
 
-function parseCanonicalOfferSnapshot(row: CanonicalOfferSnapshotRow): CanonicalOfferSnapshot | null {
+function parseCanonicalOfferSnapshot(
+  row: CanonicalOfferSnapshotRow,
+): CanonicalOfferSnapshot | null {
   try {
     requireUuid(row.id, 'snapshotId');
     requireSafeIdentifier(row.product_id, 'snapshot.productId');
@@ -801,14 +801,7 @@ export class PostgresPublishingStore {
       }
 
       const payload = withPublishingMetadata(row.payload, patch);
-      return persistPublication(
-        this.#database,
-        transaction,
-        row,
-        'APPROVED',
-        nextStatus,
-        payload,
-      );
+      return persistPublication(this.#database, transaction, row, 'APPROVED', nextStatus, payload);
     });
   }
 
