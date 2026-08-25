@@ -93,7 +93,12 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
     for (const prefix of options.allowedPathPrefixes) {
       requireSafePrefix(prefix);
     }
-    for (const prefix of options.forbiddenPathPrefixes ?? DEFAULT_FORBIDDEN_PREFIXES) {
+
+    const forbiddenPathPrefixes = [
+      ...DEFAULT_FORBIDDEN_PREFIXES,
+      ...(options.forbiddenPathPrefixes ?? []),
+    ];
+    for (const prefix of forbiddenPathPrefixes) {
       requireSafePrefix(prefix);
     }
     if (!Number.isInteger(options.timeoutMs ?? 30_000) || (options.timeoutMs ?? 30_000) < 1) {
@@ -101,9 +106,7 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
     }
 
     this.#allowedPathPrefixes = [...options.allowedPathPrefixes];
-    this.#forbiddenPathPrefixes = [
-      ...(options.forbiddenPathPrefixes ?? DEFAULT_FORBIDDEN_PREFIXES),
-    ];
+    this.#forbiddenPathPrefixes = [...new Set(forbiddenPathPrefixes)];
     this.#timeoutMs = options.timeoutMs ?? 30_000;
   }
 
