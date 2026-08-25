@@ -18,7 +18,16 @@ interface GitResult {
 }
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const DEFAULT_FORBIDDEN_PREFIXES = ['.env', '.git/', '.github/workflows/'];
+const DEFAULT_FORBIDDEN_PREFIXES = [
+  '.env',
+  '.git/',
+  '.github/workflows/',
+  '.codex/',
+  'AGENTS.md',
+  'SECURITY.md',
+  'docs/PROJECT_CONSTITUTION.md',
+  'docs/agentic/AGENT_EXECUTION_CONTRACT.md',
+];
 
 function requireSafePrefix(value: string): void {
   if (
@@ -66,6 +75,9 @@ function runGit(
 }
 
 function isWithinPrefix(path: string, prefix: string): boolean {
+  if (prefix === '.env') {
+    return path === '.env' || path.startsWith('.env.');
+  }
   return path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`);
 }
 
@@ -109,28 +121,27 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
 
       const changed = await runGit(
         workspace,
-        ['diff', '--name-only', `${workspace.baseSha}..${headSha}`],
+        [
+          'diff',
+          '--name-only',
+          '-z',
+          '--no-ext-diff',
+          '--no-textconv',
+          `${workspace.baseSha}..${headSha}`,
+        ],
         this.#timeoutMs,
       );
       if (changed.exitCode !== 0) {
         return { passed: false, reason: 'Review diff could not be read.' };
       }
 
-      const paths = changed.stdout
-        .split('\n')
-        .map((path) => path.trim())
-        .filter((path) => path.length > 0);
+      const paths = changed.stdout.split('\u0000').filter((path) => path.length > 0);
       if (paths.length === 0) {
         return { passed: false, reason: 'Review found no changed files.' };
       }
 
       for (const path of paths) {
-        if (
-          path.startsWith('/') ||
-          path === '..' ||
-          path.startsWith('../') ||
-          path.includes('\u0000')
-        ) {
+        if (path.startsWith('/') || path === '..' || path.startsWith('../')) {
           return { passed: false, reason: 'Review found an unsafe changed path.' };
         }
         if (this.#forbiddenPathPrefixes.some((prefix) => isWithinPrefix(path, prefix))) {
