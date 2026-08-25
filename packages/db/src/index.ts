@@ -42,6 +42,7 @@ export {
 
 export {
   PostgresPublishingStore,
+  PublishingAuthorizationDeniedError,
   PublishingStateConflictError,
   createPostgresPublishingStore,
   type ApplyPublishingPreparationInput,
