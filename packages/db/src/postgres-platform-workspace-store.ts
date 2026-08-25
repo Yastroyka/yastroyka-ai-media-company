@@ -141,7 +141,9 @@ export class PostgresPlatformWorkspaceStore {
     this.#database = database;
   }
 
-  async createDraft(input: CreatePlatformPublicationDraftInput): Promise<PlatformPublicationRecord> {
+  async createDraft(
+    input: CreatePlatformPublicationDraftInput,
+  ): Promise<PlatformPublicationRecord> {
     requireUuid(input.publicationId, 'publicationId');
     requireUuid(input.masterContentId, 'masterContentId');
     requireWorkspaceId(input.workspaceId);
@@ -266,7 +268,9 @@ export class PostgresPlatformWorkspaceStore {
     return rows[0] === undefined ? null : normalizeRow(rows[0]);
   }
 
-  async listByMasterContent(masterContentId: string): Promise<readonly PlatformPublicationRecord[]> {
+  async listByMasterContent(
+    masterContentId: string,
+  ): Promise<readonly PlatformPublicationRecord[]> {
     requireUuid(masterContentId, 'masterContentId');
     const rows = await this.#database.query<PublicationRow>(
       `
