@@ -11,7 +11,7 @@ import {
   type EngineeringTaskEnvelope,
 } from '../src/index.ts';
 
-const BASE_SHA = 'c2bf1610a3f9fd1aeb540023cd798a25f7dd9ad0';
+const BASE_SHA = 'a8cc2df1ce99e140f7d1e2ce093ff0a57bcde453';
 const HEAD_SHA = '1111111111111111111111111111111111111111';
 const OTHER_HEAD_SHA = '2222222222222222222222222222222222222222';
 
@@ -54,6 +54,35 @@ test('engineering runs cannot target protected main', () => {
     () => new EngineeringRunStateMachine(envelope({ branch: 'main' })),
     /isolated feature branch/u,
   );
+});
+
+test('run cannot START without a selected model', () => {
+  const machine = new EngineeringRunStateMachine(envelope({ modelSelection: null }));
+
+  assert.throws(() => machine.apply({ type: 'START' }), /cannot start without an approved model/u);
+  assert.equal(machine.state.status, 'approved');
+});
+
+test('MODEL_SELECTED records routing decision before START', () => {
+  const machine = new EngineeringRunStateMachine(envelope({ modelSelection: null }));
+
+  const selected = machine.apply({
+    type: 'MODEL_SELECTED',
+    selection: {
+      provider: 'openai',
+      model: 'codex-engineering',
+      whyThisModel: 'Selected by Model Exchange.',
+      fallbackProviders: ['deepseek'],
+    },
+  });
+
+  assert.deepEqual(selected.modelSelection, {
+    provider: 'openai',
+    model: 'codex-engineering',
+    whyThisModel: 'Selected by Model Exchange.',
+    fallbackProviders: ['deepseek'],
+  });
+  assert.equal(machine.apply({ type: 'START' }).status, 'executing');
 });
 
 test('validation retries are bounded and exhaustion becomes BLOCKED', () => {

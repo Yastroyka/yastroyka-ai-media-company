@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:integration": "node --test --test-concurrency=1 tests/task-002.integration.test.ts tests/task-003.integration.test.ts tests/task-007.integration.test.ts"
+    "test:integration": "node --test --test-concurrency=1 tests/task-002.integration.test.ts tests/task-003.integration.test.ts tests/task-007.integration.test.ts tests/milestone-03.integration.test.ts"
   },
   "dependencies": {
     "@yastroyka/auth": "workspace:*",

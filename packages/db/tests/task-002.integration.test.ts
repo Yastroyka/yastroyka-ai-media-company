@@ -113,7 +113,11 @@ test('TASK-002 canonical DB + transactional outbox', async (t) => {
 
       assert.deepEqual(
         (await migrator.pending()).map((migration) => migration.name),
-        ['0002-authorization-audit-events', '0003-model-exchange-core'],
+        [
+          '0002-authorization-audit-events',
+          '0003-model-exchange-core',
+          '0004-engineering-run-evidence',
+        ],
       );
     });
 

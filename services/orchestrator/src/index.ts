@@ -32,6 +32,7 @@ export {
 } from './engineering-run.ts';
 
 export {
+  EngineeringProviderUnavailableError,
   EngineeringRunner,
   type EngineeringAuthorizationPort,
   type EngineeringAuthorizationRequest,
@@ -39,9 +40,16 @@ export {
   type EngineeringCiResult,
   type EngineeringDraftPullRequest,
   type EngineeringDraftPullRequestInput,
+  type EngineeringEvidenceEventType,
+  type EngineeringEvidencePayload,
   type EngineeringGitHubPort,
+  type EngineeringModelCandidate,
+  type EngineeringModelRoutingDecision,
+  type EngineeringModelRoutingPort,
   type EngineeringReviewPort,
   type EngineeringReviewResult,
+  type EngineeringRunEvidencePort,
+  type EngineeringRunEvidenceRecord,
   type EngineeringRunnerDependencies,
   type EngineeringRunnerResult,
   type EngineeringValidationPort,
@@ -76,3 +84,12 @@ export {
   type GitHubDraftPullRequestTransportResult,
   type GitHubEngineeringTransport,
 } from './adapters/github-engineering-adapter.ts';
+
+export {
+  ModelExchangeEngineeringAdapter,
+  type EngineeringModelRoutingMode,
+  type ModelExchangeEngineeringAdapterOptions,
+  type ModelExchangeEngineeringClient,
+  type ModelExchangeEngineeringDecision,
+  type ModelExchangeEngineeringIdentity,
+} from './adapters/model-exchange-engineering-adapter.ts';

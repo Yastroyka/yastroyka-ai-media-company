@@ -183,7 +183,7 @@ test('TASK-007 PostgreSQL capability registry and decision trace', async (t) => 
     await database.query(`DELETE FROM model_capabilities WHERE model_id LIKE 'task007-%';`);
 
     await t.test('migration down and up are reversible', async () => {
-      const reverted = await migrator.down();
+      const reverted = await migrator.down({ migrations: ['0003-model-exchange-core'] });
 
       assert.deepEqual(
         reverted.map((migration) => migration.name),
