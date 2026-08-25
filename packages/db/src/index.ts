@@ -27,3 +27,14 @@ export {
   createPostgresCapabilityRegistry,
   createPostgresDecisionTraceStore,
 } from './postgres-model-exchange-store.ts';
+
+export {
+  PUBLICATION_PLATFORMS,
+  PlatformPublicationStateConflictError,
+  PostgresPlatformWorkspaceStore,
+  createPostgresPlatformWorkspaceStore,
+  type CreatePlatformPublicationDraftInput,
+  type PlatformPublicationRecord,
+  type PlatformPublicationStatus,
+  type PublicationPlatform,
+} from './postgres-platform-workspace-store.ts';
