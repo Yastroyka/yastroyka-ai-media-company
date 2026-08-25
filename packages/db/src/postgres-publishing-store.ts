@@ -25,10 +25,20 @@ export interface PublishingFreshnessDecision {
   readonly ageSeconds: number | null;
 }
 
+export interface PublishingFreshnessPolicy {
+  readonly refreshGraceSeconds: number;
+}
+
+export interface PostgresPublishingStoreOptions {
+  readonly freshnessPolicy: PublishingFreshnessPolicy;
+  readonly clock?: () => Date;
+}
+
 export interface PublishingAttribution {
   readonly productId: string;
   readonly offerId: string;
   readonly snapshotCapturedAt: string;
+  readonly snapshotId: string;
 }
 
 export interface PublishingAssistedPacket {
@@ -38,6 +48,7 @@ export interface PublishingAssistedPacket {
   readonly platform: PublicationPlatform;
   readonly product_id: string;
   readonly offer_id: string;
+  readonly snapshot_id: string;
   readonly snapshot_captured_at: string;
 }
 
@@ -70,9 +81,8 @@ export type PublishingPreparationKind = 'BLOCKED' | 'AUTO' | 'ASSISTED';
 export interface ApplyPublishingPreparationInput {
   readonly publicationId: string;
   readonly platform: PublicationPlatform;
-  readonly kind: PublishingPreparationKind;
-  readonly freshness: PublishingFreshnessDecision;
-  readonly attribution: PublishingAttribution;
+  readonly mode: PublishingMode;
+  readonly snapshotId: string;
 }
 
 export interface RecordAutoPublishingResultInput {
@@ -101,16 +111,27 @@ interface ApprovalRow {
   readonly status: string;
 }
 
+interface CanonicalOfferSnapshotRow {
+  readonly id: string;
+  readonly product_id: string;
+  readonly offer_id: string;
+  readonly captured_at: Date | string;
+  readonly payload: unknown;
+}
+
+interface CanonicalOfferSnapshot {
+  readonly snapshotId: string;
+  readonly productId: string;
+  readonly offerId: string;
+  readonly capturedAt: string;
+  readonly ttlSeconds: number;
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SAFE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._:-]{1,256}$/u;
 const SAFE_ACTOR_PATTERN = /^[A-Za-z0-9@._:+-]{1,128}$/u;
 const SAFE_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,79}$/u;
 const SENSITIVE_KEY_PATTERN = /(secret|token|password|credential|api[_-]?key)/iu;
-const BLOCK_FRESHNESS_REASONS = new Set<PublishingFreshnessReason>([
-  'PRICE_STOCK_EXPIRED',
-  'FRESHNESS_UNVERIFIABLE',
-  'SNAPSHOT_CAPTURED_IN_FUTURE',
-]);
 
 export class PublishingStateConflictError extends Error {
   constructor() {
@@ -137,6 +158,12 @@ function requireStatus(value: string): asserts value is PlatformPublicationStatu
   }
 }
 
+function requireMode(value: string): asserts value is PublishingMode {
+  if (value !== 'AUTO' && value !== 'ASSISTED') {
+    throw new Error('Unsupported publishing mode.');
+  }
+}
+
 function requireSafeIdentifier(value: string, field: string): void {
   if (!SAFE_IDENTIFIER_PATTERN.test(value)) {
     throw new Error(`${field} must be a safe identifier no longer than 256 characters.`);
@@ -160,6 +187,19 @@ function requireExactIsoTimestamp(value: string, field: string): void {
   if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== value) {
     throw new Error(`${field} must be an exact ISO-8601 UTC timestamp.`);
   }
+}
+
+function requireFreshnessPolicy(policy: PublishingFreshnessPolicy): PublishingFreshnessPolicy {
+  if (
+    !Number.isSafeInteger(policy.refreshGraceSeconds) ||
+    policy.refreshGraceSeconds < 0 ||
+    policy.refreshGraceSeconds > 86_400
+  ) {
+    throw new Error(
+      'freshnessPolicy.refreshGraceSeconds must be an integer between 0 and 86400.',
+    );
+  }
+  return { refreshGraceSeconds: policy.refreshGraceSeconds };
 }
 
 function normalizeDate(value: Date | string): string {
@@ -254,37 +294,126 @@ function withPublishingMetadata(
   return nextPayload;
 }
 
-function validateFreshness(decision: PublishingFreshnessDecision): void {
-  if (
-    decision.ageSeconds !== null &&
-    (!Number.isFinite(decision.ageSeconds) || decision.ageSeconds < 0)
-  ) {
-    throw new Error('freshness.ageSeconds must be null or a finite non-negative number.');
-  }
+function parseCanonicalOfferSnapshot(row: CanonicalOfferSnapshotRow): CanonicalOfferSnapshot | null {
+  try {
+    requireUuid(row.id, 'snapshotId');
+    requireSafeIdentifier(row.product_id, 'snapshot.productId');
+    requireSafeIdentifier(row.offer_id, 'snapshot.offerId');
 
-  if (decision.status === 'FRESH') {
-    if (decision.reason !== 'PRICE_STOCK_FRESH' || decision.ageSeconds === null) {
-      throw new Error('FRESH publishing freshness is inconsistent.');
+    const capturedAt = normalizeDate(row.captured_at);
+    const payload = requireJsonObject(row.payload, 'snapshot.payload');
+    const payloadOfferId = payload.offer_id;
+    const payloadCapturedAt = payload.captured_at;
+    const currency = payload.currency;
+    const price = payload.price;
+    const stock = payload.stock;
+    const availability = payload.availability;
+    const ttlSeconds = payload.ttl_seconds;
+
+    if (
+      typeof payloadOfferId !== 'string' ||
+      payloadOfferId !== row.offer_id ||
+      typeof payloadCapturedAt !== 'string' ||
+      typeof currency !== 'string' ||
+      currency.length === 0 ||
+      typeof price !== 'number' ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      typeof availability !== 'string' ||
+      availability.length === 0 ||
+      !Number.isSafeInteger(ttlSeconds) ||
+      Number(ttlSeconds) < 0
+    ) {
+      return null;
     }
-    return;
-  }
 
-  if (decision.status === 'REFRESH') {
-    if (decision.reason !== 'PRICE_STOCK_STALE' || decision.ageSeconds === null) {
-      throw new Error('REFRESH publishing freshness is inconsistent.');
+    if (
+      stock !== undefined &&
+      stock !== null &&
+      (typeof stock !== 'number' || !Number.isFinite(stock) || stock < 0)
+    ) {
+      return null;
     }
-    return;
-  }
 
-  if (decision.status !== 'BLOCK' || !BLOCK_FRESHNESS_REASONS.has(decision.reason)) {
-    throw new Error('Unsupported publishing freshness decision.');
+    requireExactIsoTimestamp(payloadCapturedAt, 'snapshot.payload.captured_at');
+    if (payloadCapturedAt !== capturedAt) {
+      return null;
+    }
+
+    return {
+      snapshotId: row.id,
+      productId: row.product_id,
+      offerId: row.offer_id,
+      capturedAt,
+      ttlSeconds: Number(ttlSeconds),
+    };
+  } catch {
+    return null;
   }
 }
 
-function validateAttribution(attribution: PublishingAttribution): void {
-  requireSafeIdentifier(attribution.productId, 'attribution.productId');
-  requireSafeIdentifier(attribution.offerId, 'attribution.offerId');
-  requireExactIsoTimestamp(attribution.snapshotCapturedAt, 'attribution.snapshotCapturedAt');
+function evaluateCanonicalSnapshotFreshness(
+  snapshot: CanonicalOfferSnapshot | null,
+  policy: PublishingFreshnessPolicy,
+  now: Date,
+): PublishingFreshnessDecision {
+  if (snapshot === null || Number.isNaN(now.getTime())) {
+    return {
+      status: 'BLOCK',
+      reason: 'FRESHNESS_UNVERIFIABLE',
+      ageSeconds: null,
+    };
+  }
+
+  const capturedAtMilliseconds = Date.parse(snapshot.capturedAt);
+  const nowMilliseconds = now.getTime();
+  const ttlMilliseconds = snapshot.ttlSeconds * 1_000;
+  const refreshGraceMilliseconds = policy.refreshGraceSeconds * 1_000;
+
+  if (
+    !Number.isSafeInteger(ttlMilliseconds) ||
+    !Number.isSafeInteger(refreshGraceMilliseconds) ||
+    !Number.isSafeInteger(ttlMilliseconds + refreshGraceMilliseconds)
+  ) {
+    return {
+      status: 'BLOCK',
+      reason: 'FRESHNESS_UNVERIFIABLE',
+      ageSeconds: null,
+    };
+  }
+
+  const ageMilliseconds = nowMilliseconds - capturedAtMilliseconds;
+  const ageSeconds = ageMilliseconds / 1_000;
+
+  if (ageMilliseconds < 0) {
+    return {
+      status: 'BLOCK',
+      reason: 'SNAPSHOT_CAPTURED_IN_FUTURE',
+      ageSeconds: null,
+    };
+  }
+
+  if (ageMilliseconds < ttlMilliseconds) {
+    return {
+      status: 'FRESH',
+      reason: 'PRICE_STOCK_FRESH',
+      ageSeconds,
+    };
+  }
+
+  if (ageMilliseconds < ttlMilliseconds + refreshGraceMilliseconds) {
+    return {
+      status: 'REFRESH',
+      reason: 'PRICE_STOCK_STALE',
+      ageSeconds,
+    };
+  }
+
+  return {
+    status: 'BLOCK',
+    reason: 'PRICE_STOCK_EXPIRED',
+    ageSeconds,
+  };
 }
 
 async function selectPublicationForUpdate(
@@ -323,6 +452,33 @@ async function selectPublicationForUpdate(
     throw new PublishingStateConflictError();
   }
   return row;
+}
+
+async function selectCanonicalSnapshot(
+  database: Sequelize,
+  transaction: Transaction,
+  snapshotId: string,
+): Promise<CanonicalOfferSnapshotRow | null> {
+  const rows = await database.query<CanonicalOfferSnapshotRow>(
+    `
+      SELECT
+        id,
+        product_id,
+        offer_id,
+        captured_at,
+        payload
+      FROM commerce_offer_snapshots
+      WHERE id = :snapshotId
+      FOR SHARE;
+    `,
+    {
+      replacements: { snapshotId },
+      type: QueryTypes.SELECT,
+      transaction,
+    },
+  );
+
+  return rows[0] ?? null;
 }
 
 async function persistPublication(
@@ -377,9 +533,13 @@ async function persistPublication(
 
 export class PostgresPublishingStore {
   readonly #database: Sequelize;
+  readonly #freshnessPolicy: PublishingFreshnessPolicy;
+  readonly #clock: () => Date;
 
-  constructor(database: Sequelize) {
+  constructor(database: Sequelize, options: PostgresPublishingStoreOptions) {
     this.#database = database;
+    this.#freshnessPolicy = requireFreshnessPolicy(options.freshnessPolicy);
+    this.#clock = options.clock ?? (() => new Date());
   }
 
   async recordQaResult(input: RecordPublishingQaResultInput): Promise<PlatformPublicationRecord> {
@@ -558,20 +718,8 @@ export class PostgresPublishingStore {
   ): Promise<PlatformPublicationRecord> {
     requireUuid(input.publicationId, 'publicationId');
     requirePlatform(input.platform);
-    validateFreshness(input.freshness);
-    validateAttribution(input.attribution);
-
-    if (input.kind === 'BLOCKED') {
-      if (input.freshness.status === 'FRESH') {
-        throw new Error('Fresh publishing preparation cannot be marked BLOCKED.');
-      }
-    } else if (input.kind === 'AUTO' || input.kind === 'ASSISTED') {
-      if (input.freshness.status !== 'FRESH') {
-        throw new Error('AUTO and ASSISTED require FRESH commerce data.');
-      }
-    } else {
-      throw new Error('Unsupported publishing preparation kind.');
-    }
+    requireMode(input.mode);
+    requireUuid(input.snapshotId, 'snapshotId');
 
     return this.#database.transaction(async (transaction) => {
       const row = await selectPublicationForUpdate(
@@ -581,41 +729,86 @@ export class PostgresPublishingStore {
         input.platform,
         'APPROVED',
       );
+      const snapshotRow = await selectCanonicalSnapshot(
+        this.#database,
+        transaction,
+        input.snapshotId,
+      );
+      const snapshot = snapshotRow === null ? null : parseCanonicalOfferSnapshot(snapshotRow);
+      const freshness = evaluateCanonicalSnapshotFreshness(
+        snapshot,
+        this.#freshnessPolicy,
+        this.#clock(),
+      );
+
+      if (snapshotRow === null) {
+        throw new Error('Canonical commerce offer snapshot was not found.');
+      }
+
+      const canonicalSnapshot = snapshot ?? {
+        snapshotId: snapshotRow.id,
+        productId: snapshotRow.product_id,
+        offerId: snapshotRow.offer_id,
+        capturedAt: normalizeDate(snapshotRow.captured_at),
+        ttlSeconds: 0,
+      };
+      requireUuid(canonicalSnapshot.snapshotId, 'snapshotId');
+      requireSafeIdentifier(canonicalSnapshot.productId, 'snapshot.productId');
+      requireSafeIdentifier(canonicalSnapshot.offerId, 'snapshot.offerId');
+
       const canonical = normalizeRow(row);
+      const nextStatus: PublishingPreparationKind =
+        freshness.status === 'FRESH' ? input.mode : 'BLOCKED';
+      const attribution: PublishingAttribution = {
+        productId: canonicalSnapshot.productId,
+        offerId: canonicalSnapshot.offerId,
+        snapshotCapturedAt: canonicalSnapshot.capturedAt,
+        snapshotId: canonicalSnapshot.snapshotId,
+      };
       const assistedPacket: PublishingAssistedPacket | null =
-        input.kind === 'ASSISTED'
+        nextStatus === 'ASSISTED'
           ? {
               publication_id: canonical.publicationId,
               master_content_id: canonical.masterContentId,
               workspace_id: canonical.workspaceId,
               platform: canonical.platform,
-              product_id: input.attribution.productId,
-              offer_id: input.attribution.offerId,
-              snapshot_captured_at: input.attribution.snapshotCapturedAt,
+              product_id: attribution.productId,
+              offer_id: attribution.offerId,
+              snapshot_id: attribution.snapshotId,
+              snapshot_captured_at: attribution.snapshotCapturedAt,
             }
           : null;
 
       const patch: Record<string, unknown> = {
+        requested_mode: input.mode,
         freshness: {
-          status: input.freshness.status,
-          reason: input.freshness.reason,
-          age_seconds: input.freshness.ageSeconds,
+          status: freshness.status,
+          reason: freshness.reason,
+          age_seconds: freshness.ageSeconds,
         },
         attribution: {
-          product_id: input.attribution.productId,
-          offer_id: input.attribution.offerId,
-          snapshot_captured_at: input.attribution.snapshotCapturedAt,
+          product_id: attribution.productId,
+          offer_id: attribution.offerId,
+          snapshot_id: attribution.snapshotId,
+          snapshot_captured_at: attribution.snapshotCapturedAt,
         },
       };
-      if (input.kind !== 'BLOCKED') {
-        patch.mode = input.kind;
+      if (nextStatus !== 'BLOCKED') {
+        patch.mode = nextStatus;
       }
       if (assistedPacket !== null) {
         patch.assisted_packet = assistedPacket;
       }
 
       const payload = withPublishingMetadata(row.payload, patch);
-      return persistPublication(this.#database, transaction, row, 'APPROVED', input.kind, payload);
+      return persistPublication(
+        this.#database,
+        transaction,
+        row,
+        'APPROVED',
+        nextStatus,
+        payload,
+      );
     });
   }
 
@@ -679,6 +872,9 @@ export class PostgresPublishingStore {
   }
 }
 
-export function createPostgresPublishingStore(database: Sequelize): PostgresPublishingStore {
-  return new PostgresPublishingStore(database);
+export function createPostgresPublishingStore(
+  database: Sequelize,
+  options: PostgresPublishingStoreOptions,
+): PostgresPublishingStore {
+  return new PostgresPublishingStore(database, options);
 }
