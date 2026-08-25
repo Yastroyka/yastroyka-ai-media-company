@@ -94,9 +94,7 @@ test('TASK-010 publishing enforces QA, AuthZ approval and canonical snapshot fre
     await database.query(
       `DELETE FROM commerce_offer_snapshots WHERE id IN (${SNAPSHOT_IDS.map((id) => `'${id}'`).join(', ')});`,
     );
-    await database.query(
-      `DELETE FROM authorization_audit_events WHERE resource = 'publication';`,
-    );
+    await database.query(`DELETE FROM authorization_audit_events WHERE resource = 'publication';`);
 
     const authorizationPolicy = loadPolicyContract(POLICY_PATH);
     const authorizationAuditSink = createPostgresAuthorizationAuditSink(database);
