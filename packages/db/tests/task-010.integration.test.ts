@@ -59,7 +59,9 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
     await database.query(
       `DELETE FROM approvals WHERE aggregate_id IN (${PUBLICATION_IDS.map((id) => `'${id}'`).join(', ')});`,
     );
-    await database.query(`DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`);
+    await database.query(
+      `DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`,
+    );
 
     const workspaces = createPostgresPlatformWorkspaceStore(database);
     const publishing = createPostgresPublishingStore(database);
@@ -209,112 +211,118 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
       );
     });
 
-    await t.test('ASSISTED packet preserves canonical publication and attribution IDs', async () => {
-      await publishing.recordQaResult({
-        publicationId: ASSISTED_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        outcome: 'PASS',
-        evidenceId: 'qa-assisted-001',
-        code: 'QA_PASSED',
-      });
-      await publishing.requestApproval({
-        publicationId: ASSISTED_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: ASSISTED_APPROVAL_ID,
-        requestedBy: 'owner',
-      });
-      await publishing.decideApproval({
-        publicationId: ASSISTED_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: ASSISTED_APPROVAL_ID,
-        decision: 'APPROVED',
-        decidedBy: 'owner',
-      });
+    await t.test(
+      'ASSISTED packet preserves canonical publication and attribution IDs',
+      async () => {
+        await publishing.recordQaResult({
+          publicationId: ASSISTED_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          outcome: 'PASS',
+          evidenceId: 'qa-assisted-001',
+          code: 'QA_PASSED',
+        });
+        await publishing.requestApproval({
+          publicationId: ASSISTED_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: ASSISTED_APPROVAL_ID,
+          requestedBy: 'owner',
+        });
+        await publishing.decideApproval({
+          publicationId: ASSISTED_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: ASSISTED_APPROVAL_ID,
+          decision: 'APPROVED',
+          decidedBy: 'owner',
+        });
 
-      const assisted = await publishing.applyPreparation({
-        publicationId: ASSISTED_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        kind: 'ASSISTED',
-        freshness: {
-          status: 'FRESH',
-          reason: 'PRICE_STOCK_FRESH',
-          ageSeconds: 20,
-        },
-        attribution: {
-          productId: 'product-assisted',
-          offerId: 'offer-assisted',
-          snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-        },
-      });
+        const assisted = await publishing.applyPreparation({
+          publicationId: ASSISTED_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          kind: 'ASSISTED',
+          freshness: {
+            status: 'FRESH',
+            reason: 'PRICE_STOCK_FRESH',
+            ageSeconds: 20,
+          },
+          attribution: {
+            productId: 'product-assisted',
+            offerId: 'offer-assisted',
+            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
+          },
+        });
 
-      assert.equal(assisted.status, 'ASSISTED');
-      assert.equal(assisted.publishedAt, null);
-      assert.deepEqual(publishingMetadata(assisted.payload).assisted_packet, {
-        publication_id: ASSISTED_PUBLICATION_ID,
-        master_content_id: MASTER_CONTENT_ID,
-        workspace_id: 'yastroyka-vk-community',
-        platform: 'VK_COMMUNITY',
-        product_id: 'product-assisted',
-        offer_id: 'offer-assisted',
-        snapshot_captured_at: SNAPSHOT_CAPTURED_AT,
-      });
-    });
+        assert.equal(assisted.status, 'ASSISTED');
+        assert.equal(assisted.publishedAt, null);
+        assert.deepEqual(publishingMetadata(assisted.payload).assisted_packet, {
+          publication_id: ASSISTED_PUBLICATION_ID,
+          master_content_id: MASTER_CONTENT_ID,
+          workspace_id: 'yastroyka-vk-community',
+          platform: 'VK_COMMUNITY',
+          product_id: 'product-assisted',
+          offer_id: 'offer-assisted',
+          snapshot_captured_at: SNAPSHOT_CAPTURED_AT,
+        });
+      },
+    );
 
-    await t.test('AUTO requires the full gate chain before a publish result can persist', async () => {
-      await publishing.recordQaResult({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        outcome: 'PASS',
-        evidenceId: 'qa-auto-001',
-        code: 'QA_PASSED',
-      });
-      await publishing.requestApproval({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: AUTO_APPROVAL_ID,
-        requestedBy: 'owner',
-      });
-      await publishing.decideApproval({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: AUTO_APPROVAL_ID,
-        decision: 'APPROVED',
-        decidedBy: 'owner',
-      });
+    await t.test(
+      'AUTO requires the full gate chain before a publish result can persist',
+      async () => {
+        await publishing.recordQaResult({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          outcome: 'PASS',
+          evidenceId: 'qa-auto-001',
+          code: 'QA_PASSED',
+        });
+        await publishing.requestApproval({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: AUTO_APPROVAL_ID,
+          requestedBy: 'owner',
+        });
+        await publishing.decideApproval({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: AUTO_APPROVAL_ID,
+          decision: 'APPROVED',
+          decidedBy: 'owner',
+        });
 
-      const auto = await publishing.applyPreparation({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        kind: 'AUTO',
-        freshness: {
-          status: 'FRESH',
-          reason: 'PRICE_STOCK_FRESH',
-          ageSeconds: 5,
-        },
-        attribution: {
-          productId: 'product-auto',
-          offerId: 'offer-auto',
-          snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-        },
-      });
-      assert.equal(auto.status, 'AUTO');
+        const auto = await publishing.applyPreparation({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          kind: 'AUTO',
+          freshness: {
+            status: 'FRESH',
+            reason: 'PRICE_STOCK_FRESH',
+            ageSeconds: 5,
+          },
+          attribution: {
+            productId: 'product-auto',
+            offerId: 'offer-auto',
+            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
+          },
+        });
+        assert.equal(auto.status, 'AUTO');
 
-      const published = await publishing.recordAutoResult({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        outcome: 'SUCCESS',
-        code: 'VK_POST_CREATED',
-        externalId: 'wall-123_456',
-        publishedAt: '2026-08-25T10:10:00.000Z',
-      });
-      assert.equal(published.status, 'PUBLISHED');
-      assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
-      assert.deepEqual(publishingMetadata(published.payload).result, {
-        outcome: 'SUCCESS',
-        code: 'VK_POST_CREATED',
-        external_id: 'wall-123_456',
-      });
-    });
+        const published = await publishing.recordAutoResult({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          outcome: 'SUCCESS',
+          code: 'VK_POST_CREATED',
+          externalId: 'wall-123_456',
+          publishedAt: '2026-08-25T10:10:00.000Z',
+        });
+        assert.equal(published.status, 'PUBLISHED');
+        assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
+        assert.deepEqual(publishingMetadata(published.payload).result, {
+          outcome: 'SUCCESS',
+          code: 'VK_POST_CREATED',
+          external_id: 'wall-123_456',
+        });
+      },
+    );
 
     await t.test('rejected human approval is terminal for this publication attempt', async () => {
       await publishing.recordQaResult({
