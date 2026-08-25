@@ -10,12 +10,12 @@ export interface RestrictedValidationCommand {
 
 export interface RestrictedValidationAdapterOptions {
   readonly checks: Readonly<Record<string, RestrictedValidationCommand>>;
+  readonly allowedPnpmScripts?: readonly string[];
   readonly timeoutMs?: number;
 }
 
 const CHECK_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/u;
 const SAFE_PNPM_SCRIPT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/u;
-const ALLOWED_GIT_OPERATIONS = new Set(['diff', 'rev-parse', 'status']);
 
 function requireCheckName(value: string): void {
   if (!CHECK_NAME_PATTERN.test(value)) {
@@ -23,23 +23,40 @@ function requireCheckName(value: string): void {
   }
 }
 
-function validateCommand(command: RestrictedValidationCommand): void {
+function sameArgs(actual: readonly string[], expected: readonly string[]): boolean {
+  return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
+}
+
+function validateGitCommand(args: readonly string[]): void {
+  const allowed =
+    sameArgs(args, ['diff', '--check', '{baseSha}..HEAD']) ||
+    sameArgs(args, ['rev-parse', 'HEAD']) ||
+    sameArgs(args, ['status', '--porcelain=v1', '--untracked-files=all']);
+
+  if (!allowed) {
+    throw new Error('Restricted validation permits only approved read-only Git command forms.');
+  }
+}
+
+function validateCommand(
+  command: RestrictedValidationCommand,
+  allowedPnpmScripts: ReadonlySet<string>,
+): void {
   if (command.args.length === 0 || command.args.some((arg) => arg.includes('\u0000'))) {
     throw new Error('Restricted validation command contains invalid arguments.');
   }
 
   if (command.tool === 'git') {
-    if (!ALLOWED_GIT_OPERATIONS.has(command.args[0] ?? '')) {
-      throw new Error('Restricted validation permits only read-only Git operations.');
-    }
+    validateGitCommand(command.args);
     return;
   }
 
   if (command.args.length !== 2 || command.args[0] !== 'run') {
     throw new Error('Restricted pnpm validation must use exactly `pnpm run <script>`.');
   }
-  if (!SAFE_PNPM_SCRIPT_PATTERN.test(command.args[1] ?? '')) {
-    throw new Error('Restricted pnpm validation script name is invalid.');
+  const script = command.args[1] ?? '';
+  if (!SAFE_PNPM_SCRIPT_PATTERN.test(script) || !allowedPnpmScripts.has(script)) {
+    throw new Error('Restricted pnpm validation script is not explicitly approved.');
   }
 }
 
@@ -81,9 +98,16 @@ export class RestrictedValidationAdapter implements EngineeringValidationPort {
       throw new Error('timeoutMs must be a positive integer.');
     }
 
+    const allowedPnpmScripts = new Set(options.allowedPnpmScripts ?? []);
+    for (const script of allowedPnpmScripts) {
+      if (!SAFE_PNPM_SCRIPT_PATTERN.test(script)) {
+        throw new Error('allowedPnpmScripts contains an invalid script name.');
+      }
+    }
+
     for (const [name, command] of Object.entries(options.checks)) {
       requireCheckName(name);
-      validateCommand(command);
+      validateCommand(command, allowedPnpmScripts);
     }
 
     this.#checks = options.checks;
