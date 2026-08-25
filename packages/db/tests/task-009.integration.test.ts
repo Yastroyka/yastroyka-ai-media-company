@@ -13,10 +13,8 @@ process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
 
 const { createDatabaseConnection } = await import('../src/connection.ts');
 const { createMigrator } = await import('../src/migrator.ts');
-const {
-  PlatformPublicationStateConflictError,
-  createPostgresPlatformWorkspaceStore,
-} = await import('../src/postgres-platform-workspace-store.ts');
+const { PlatformPublicationStateConflictError, createPostgresPlatformWorkspaceStore } =
+  await import('../src/postgres-platform-workspace-store.ts');
 
 test('TASK-009 platform workspaces persist independent publication state', async (t) => {
   const database = createDatabaseConnection();
@@ -106,32 +104,35 @@ test('TASK-009 platform workspaces persist independent publication state', async
       assert.equal((await store.findById(VK_VIDEO_PUBLICATION_ID))?.status, 'DRAFT');
     });
 
-    await t.test('unsupported platform and secret-like payloads are rejected before persistence', async () => {
-      await assert.rejects(
-        store.createDraft({
-          publicationId: '00000000-0000-4000-8000-000000000094',
-          masterContentId: MASTER_CONTENT_ID,
-          workspaceId: 'unsupported-platform',
-          platform: 'TELEGRAM' as never,
-          payload: {},
-        }),
-        /Unsupported publication platform/u,
-      );
+    await t.test(
+      'unsupported platform and secret-like payloads are rejected before persistence',
+      async () => {
+        await assert.rejects(
+          store.createDraft({
+            publicationId: '00000000-0000-4000-8000-000000000094',
+            masterContentId: MASTER_CONTENT_ID,
+            workspaceId: 'unsupported-platform',
+            platform: 'TELEGRAM' as never,
+            payload: {},
+          }),
+          /Unsupported publication platform/u,
+        );
 
-      await assert.rejects(
-        store.createDraft({
-          publicationId: '00000000-0000-4000-8000-000000000095',
-          masterContentId: MASTER_CONTENT_ID,
-          workspaceId: 'yastroyka-vk-community',
-          platform: 'VK_COMMUNITY',
-          payload: { access_token: 'must-not-persist' },
-        }),
-        /must not contain credentials or secret material/u,
-      );
+        await assert.rejects(
+          store.createDraft({
+            publicationId: '00000000-0000-4000-8000-000000000095',
+            masterContentId: MASTER_CONTENT_ID,
+            workspaceId: 'yastroyka-vk-community',
+            platform: 'VK_COMMUNITY',
+            payload: { access_token: 'must-not-persist' },
+          }),
+          /must not contain credentials or secret material/u,
+        );
 
-      assert.equal(await store.findById('00000000-0000-4000-8000-000000000094'), null);
-      assert.equal(await store.findById('00000000-0000-4000-8000-000000000095'), null);
-    });
+        assert.equal(await store.findById('00000000-0000-4000-8000-000000000094'), null);
+        assert.equal(await store.findById('00000000-0000-4000-8000-000000000095'), null);
+      },
+    );
 
     await t.test('TASK-009 adds no shared VK publication queue', async () => {
       const [rows] = await database.query(`
@@ -143,9 +144,9 @@ test('TASK-009 platform workspaces persist independent publication state', async
       assert.equal(rows.length, 0);
     });
   } finally {
-    await database.query(
-      `DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`,
-    ).catch(() => undefined);
+    await database
+      .query(`DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`)
+      .catch(() => undefined);
     await database.close();
   }
 });
