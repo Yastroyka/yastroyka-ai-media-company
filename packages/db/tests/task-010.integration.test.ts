@@ -13,7 +13,10 @@ const STALE_APPROVAL_ID = '00000000-0000-4000-8000-000000000111';
 const ASSISTED_APPROVAL_ID = '00000000-0000-4000-8000-000000000112';
 const AUTO_APPROVAL_ID = '00000000-0000-4000-8000-000000000113';
 const REJECTED_APPROVAL_ID = '00000000-0000-4000-8000-000000000114';
-const SNAPSHOT_CAPTURED_AT = '2026-08-25T10:00:00.000Z';
+const STALE_SNAPSHOT_ID = '00000000-0000-4000-8000-000000000121';
+const ASSISTED_SNAPSHOT_ID = '00000000-0000-4000-8000-000000000122';
+const AUTO_SNAPSHOT_ID = '00000000-0000-4000-8000-000000000123';
+const NOW = '2026-08-25T10:10:00.000Z';
 
 const PUBLICATION_IDS = [
   STALE_PUBLICATION_ID,
@@ -21,6 +24,8 @@ const PUBLICATION_IDS = [
   AUTO_PUBLICATION_ID,
   REJECTED_PUBLICATION_ID,
 ] as const;
+
+const SNAPSHOT_IDS = [STALE_SNAPSHOT_ID, ASSISTED_SNAPSHOT_ID, AUTO_SNAPSHOT_ID] as const;
 
 process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
 process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
@@ -38,7 +43,23 @@ function publishingMetadata(payload: Readonly<Record<string, unknown>>): Record<
   return value as Record<string, unknown>;
 }
 
-test('TASK-010 publishing enforces QA, approval, freshness and bounded results', async (t) => {
+function snapshotPayload(
+  offerId: string,
+  capturedAt: string,
+  ttlSeconds: number,
+): Readonly<Record<string, unknown>> {
+  return {
+    offer_id: offerId,
+    captured_at: capturedAt,
+    currency: 'RUB',
+    price: 1_000,
+    stock: 5,
+    availability: 'IN_STOCK',
+    ttl_seconds: ttlSeconds,
+  };
+}
+
+test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness', async (t) => {
   const database = createDatabaseConnection();
 
   try {
@@ -62,9 +83,23 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
     await database.query(
       `DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`,
     );
+    await database.query(
+      `DELETE FROM commerce_offer_snapshots WHERE id IN (${SNAPSHOT_IDS.map((id) => `'${id}'`).join(', ')});`,
+    );
 
     const workspaces = createPostgresPlatformWorkspaceStore(database);
-    const publishing = createPostgresPublishingStore(database);
+    const publishing = createPostgresPublishingStore(database, {
+      freshnessPolicy: { refreshGraceSeconds: 60 },
+      clock: () => new Date(NOW),
+    });
+
+    assert.throws(
+      () =>
+        createPostgresPublishingStore(database, {
+          freshnessPolicy: { refreshGraceSeconds: -1 },
+        }),
+      /freshnessPolicy.refreshGraceSeconds/u,
+    );
 
     await t.test('draft cannot forge store-owned publishing gate metadata', async () => {
       await assert.rejects(
@@ -98,121 +133,150 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
       });
     }
 
-    await t.test('stale offer cannot bypass freshness into AUTO publishing', async () => {
-      assert.equal(
-        (
-          await publishing.recordQaResult({
-            publicationId: STALE_PUBLICATION_ID,
-            platform: 'VK_COMMUNITY',
-            outcome: 'PASS',
-            evidenceId: 'qa-stale-001',
-            code: 'QA_PASSED',
-          })
-        ).status,
-        'QA_PASSED',
-      );
-      assert.equal(
-        (
-          await publishing.requestApproval({
-            publicationId: STALE_PUBLICATION_ID,
-            platform: 'VK_COMMUNITY',
-            approvalId: STALE_APPROVAL_ID,
-            requestedBy: 'owner',
-          })
-        ).status,
-        'AWAITING_APPROVAL',
-      );
-
-      await assert.rejects(
-        publishing.applyPreparation({
-          publicationId: STALE_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          kind: 'AUTO',
-          freshness: {
-            status: 'FRESH',
-            reason: 'PRICE_STOCK_FRESH',
-            ageSeconds: 10,
+    for (const snapshot of [
+      {
+        id: STALE_SNAPSHOT_ID,
+        productId: 'product-stale',
+        offerId: 'offer-stale',
+        capturedAt: '2026-08-25T10:00:00.000Z',
+        ttlSeconds: 300,
+      },
+      {
+        id: ASSISTED_SNAPSHOT_ID,
+        productId: 'product-assisted',
+        offerId: 'offer-assisted',
+        capturedAt: '2026-08-25T10:09:30.000Z',
+        ttlSeconds: 300,
+      },
+      {
+        id: AUTO_SNAPSHOT_ID,
+        productId: 'product-auto',
+        offerId: 'offer-auto',
+        capturedAt: '2026-08-25T10:09:50.000Z',
+        ttlSeconds: 300,
+      },
+    ] as const) {
+      await database.query(
+        `
+          INSERT INTO commerce_offer_snapshots (
+            id,
+            product_id,
+            offer_id,
+            seller_id,
+            captured_at,
+            payload
+          )
+          VALUES (
+            :id,
+            :productId,
+            :offerId,
+            'seller-yastroyka',
+            :capturedAt,
+            CAST(:payload AS jsonb)
+          );
+        `,
+        {
+          replacements: {
+            id: snapshot.id,
+            productId: snapshot.productId,
+            offerId: snapshot.offerId,
+            capturedAt: snapshot.capturedAt,
+            payload: JSON.stringify(
+              snapshotPayload(snapshot.offerId, snapshot.capturedAt, snapshot.ttlSeconds),
+            ),
           },
-          attribution: {
-            productId: 'product-stale',
-            offerId: 'offer-stale',
-            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-          },
-        }),
-        PublishingStateConflictError,
-      );
-
-      assert.equal(
-        (
-          await publishing.decideApproval({
-            publicationId: STALE_PUBLICATION_ID,
-            platform: 'VK_COMMUNITY',
-            approvalId: STALE_APPROVAL_ID,
-            decision: 'APPROVED',
-            decidedBy: 'owner',
-          })
-        ).status,
-        'APPROVED',
-      );
-
-      await assert.rejects(
-        publishing.applyPreparation({
-          publicationId: STALE_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          kind: 'AUTO',
-          freshness: {
-            status: 'REFRESH',
-            reason: 'PRICE_STOCK_STALE',
-            ageSeconds: 600,
-          },
-          attribution: {
-            productId: 'product-stale',
-            offerId: 'offer-stale',
-            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-          },
-        }),
-        /AUTO and ASSISTED require FRESH commerce data/u,
-      );
-      assert.equal((await workspaces.findById(STALE_PUBLICATION_ID))?.status, 'APPROVED');
-
-      const blocked = await publishing.applyPreparation({
-        publicationId: STALE_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        kind: 'BLOCKED',
-        freshness: {
-          status: 'REFRESH',
-          reason: 'PRICE_STOCK_STALE',
-          ageSeconds: 600,
         },
-        attribution: {
-          productId: 'product-stale',
-          offerId: 'offer-stale',
-          snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-        },
-      });
-      assert.equal(blocked.status, 'BLOCKED');
-      assert.equal(blocked.publishedAt, null);
-      assert.deepEqual(publishingMetadata(blocked.payload).freshness, {
-        status: 'REFRESH',
-        reason: 'PRICE_STOCK_STALE',
-        age_seconds: 600,
-      });
-
-      await assert.rejects(
-        publishing.recordAutoResult({
-          publicationId: STALE_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          outcome: 'SUCCESS',
-          code: 'VK_POST_CREATED',
-          externalId: 'wall-1_1',
-          publishedAt: '2026-08-25T10:10:00.000Z',
-        }),
-        PublishingStateConflictError,
       );
-    });
+    }
 
     await t.test(
-      'ASSISTED packet preserves canonical publication and attribution IDs',
+      'canonical stale snapshot blocks AUTO even when caller requests AUTO',
+      async () => {
+        assert.equal(
+          (
+            await publishing.recordQaResult({
+              publicationId: STALE_PUBLICATION_ID,
+              platform: 'VK_COMMUNITY',
+              outcome: 'PASS',
+              evidenceId: 'qa-stale-001',
+              code: 'QA_PASSED',
+            })
+          ).status,
+          'QA_PASSED',
+        );
+        assert.equal(
+          (
+            await publishing.requestApproval({
+              publicationId: STALE_PUBLICATION_ID,
+              platform: 'VK_COMMUNITY',
+              approvalId: STALE_APPROVAL_ID,
+              requestedBy: 'owner',
+            })
+          ).status,
+          'AWAITING_APPROVAL',
+        );
+
+        await assert.rejects(
+          publishing.applyPreparation({
+            publicationId: STALE_PUBLICATION_ID,
+            platform: 'VK_COMMUNITY',
+            mode: 'AUTO',
+            snapshotId: STALE_SNAPSHOT_ID,
+          }),
+          PublishingStateConflictError,
+        );
+
+        assert.equal(
+          (
+            await publishing.decideApproval({
+              publicationId: STALE_PUBLICATION_ID,
+              platform: 'VK_COMMUNITY',
+              approvalId: STALE_APPROVAL_ID,
+              decision: 'APPROVED',
+              decidedBy: 'owner',
+            })
+          ).status,
+          'APPROVED',
+        );
+
+        const blocked = await publishing.applyPreparation({
+          publicationId: STALE_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          mode: 'AUTO',
+          snapshotId: STALE_SNAPSHOT_ID,
+        });
+        assert.equal(blocked.status, 'BLOCKED');
+        assert.equal(blocked.publishedAt, null);
+        assert.deepEqual(publishingMetadata(blocked.payload).freshness, {
+          status: 'BLOCK',
+          reason: 'PRICE_STOCK_EXPIRED',
+          age_seconds: 600,
+        });
+        assert.deepEqual(publishingMetadata(blocked.payload).attribution, {
+          product_id: 'product-stale',
+          offer_id: 'offer-stale',
+          snapshot_id: STALE_SNAPSHOT_ID,
+          snapshot_captured_at: '2026-08-25T10:00:00.000Z',
+        });
+        assert.equal(publishingMetadata(blocked.payload).requested_mode, 'AUTO');
+        assert.equal(publishingMetadata(blocked.payload).mode, undefined);
+
+        await assert.rejects(
+          publishing.recordAutoResult({
+            publicationId: STALE_PUBLICATION_ID,
+            platform: 'VK_COMMUNITY',
+            outcome: 'SUCCESS',
+            code: 'VK_POST_CREATED',
+            externalId: 'wall-1_1',
+            publishedAt: '2026-08-25T10:10:00.000Z',
+          }),
+          PublishingStateConflictError,
+        );
+      },
+    );
+
+    await t.test(
+      'ASSISTED packet derives publication and attribution IDs from canonical state',
       async () => {
         await publishing.recordQaResult({
           publicationId: ASSISTED_PUBLICATION_ID,
@@ -238,17 +302,8 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
         const assisted = await publishing.applyPreparation({
           publicationId: ASSISTED_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
-          kind: 'ASSISTED',
-          freshness: {
-            status: 'FRESH',
-            reason: 'PRICE_STOCK_FRESH',
-            ageSeconds: 20,
-          },
-          attribution: {
-            productId: 'product-assisted',
-            offerId: 'offer-assisted',
-            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-          },
+          mode: 'ASSISTED',
+          snapshotId: ASSISTED_SNAPSHOT_ID,
         });
 
         assert.equal(assisted.status, 'ASSISTED');
@@ -260,69 +315,63 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
           platform: 'VK_COMMUNITY',
           product_id: 'product-assisted',
           offer_id: 'offer-assisted',
-          snapshot_captured_at: SNAPSHOT_CAPTURED_AT,
+          snapshot_id: ASSISTED_SNAPSHOT_ID,
+          snapshot_captured_at: '2026-08-25T10:09:30.000Z',
         });
       },
     );
 
-    await t.test(
-      'AUTO requires the full gate chain before a publish result can persist',
-      async () => {
-        await publishing.recordQaResult({
-          publicationId: AUTO_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          outcome: 'PASS',
-          evidenceId: 'qa-auto-001',
-          code: 'QA_PASSED',
-        });
-        await publishing.requestApproval({
-          publicationId: AUTO_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          approvalId: AUTO_APPROVAL_ID,
-          requestedBy: 'owner',
-        });
-        await publishing.decideApproval({
-          publicationId: AUTO_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          approvalId: AUTO_APPROVAL_ID,
-          decision: 'APPROVED',
-          decidedBy: 'owner',
-        });
+    await t.test('AUTO requires the full gate chain before a publish result can persist', async () => {
+      await publishing.recordQaResult({
+        publicationId: AUTO_PUBLICATION_ID,
+        platform: 'VK_COMMUNITY',
+        outcome: 'PASS',
+        evidenceId: 'qa-auto-001',
+        code: 'QA_PASSED',
+      });
+      await publishing.requestApproval({
+        publicationId: AUTO_PUBLICATION_ID,
+        platform: 'VK_COMMUNITY',
+        approvalId: AUTO_APPROVAL_ID,
+        requestedBy: 'owner',
+      });
+      await publishing.decideApproval({
+        publicationId: AUTO_PUBLICATION_ID,
+        platform: 'VK_COMMUNITY',
+        approvalId: AUTO_APPROVAL_ID,
+        decision: 'APPROVED',
+        decidedBy: 'owner',
+      });
 
-        const auto = await publishing.applyPreparation({
-          publicationId: AUTO_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          kind: 'AUTO',
-          freshness: {
-            status: 'FRESH',
-            reason: 'PRICE_STOCK_FRESH',
-            ageSeconds: 5,
-          },
-          attribution: {
-            productId: 'product-auto',
-            offerId: 'offer-auto',
-            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-          },
-        });
-        assert.equal(auto.status, 'AUTO');
+      const auto = await publishing.applyPreparation({
+        publicationId: AUTO_PUBLICATION_ID,
+        platform: 'VK_COMMUNITY',
+        mode: 'AUTO',
+        snapshotId: AUTO_SNAPSHOT_ID,
+      });
+      assert.equal(auto.status, 'AUTO');
+      assert.deepEqual(publishingMetadata(auto.payload).freshness, {
+        status: 'FRESH',
+        reason: 'PRICE_STOCK_FRESH',
+        age_seconds: 10,
+      });
 
-        const published = await publishing.recordAutoResult({
-          publicationId: AUTO_PUBLICATION_ID,
-          platform: 'VK_COMMUNITY',
-          outcome: 'SUCCESS',
-          code: 'VK_POST_CREATED',
-          externalId: 'wall-123_456',
-          publishedAt: '2026-08-25T10:10:00.000Z',
-        });
-        assert.equal(published.status, 'PUBLISHED');
-        assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
-        assert.deepEqual(publishingMetadata(published.payload).result, {
-          outcome: 'SUCCESS',
-          code: 'VK_POST_CREATED',
-          external_id: 'wall-123_456',
-        });
-      },
-    );
+      const published = await publishing.recordAutoResult({
+        publicationId: AUTO_PUBLICATION_ID,
+        platform: 'VK_COMMUNITY',
+        outcome: 'SUCCESS',
+        code: 'VK_POST_CREATED',
+        externalId: 'wall-123_456',
+        publishedAt: '2026-08-25T10:10:00.000Z',
+      });
+      assert.equal(published.status, 'PUBLISHED');
+      assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
+      assert.deepEqual(publishingMetadata(published.payload).result, {
+        outcome: 'SUCCESS',
+        code: 'VK_POST_CREATED',
+        external_id: 'wall-123_456',
+      });
+    });
 
     await t.test('rejected human approval is terminal for this publication attempt', async () => {
       await publishing.recordQaResult({
@@ -352,17 +401,8 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
         publishing.applyPreparation({
           publicationId: REJECTED_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
-          kind: 'ASSISTED',
-          freshness: {
-            status: 'FRESH',
-            reason: 'PRICE_STOCK_FRESH',
-            ageSeconds: 1,
-          },
-          attribution: {
-            productId: 'product-rejected',
-            offerId: 'offer-rejected',
-            snapshotCapturedAt: SNAPSHOT_CAPTURED_AT,
-          },
+          mode: 'ASSISTED',
+          snapshotId: ASSISTED_SNAPSHOT_ID,
         }),
         PublishingStateConflictError,
       );
@@ -387,6 +427,11 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
       .catch(() => undefined);
     await database
       .query(`DELETE FROM publications WHERE master_content_id = '${MASTER_CONTENT_ID}';`)
+      .catch(() => undefined);
+    await database
+      .query(
+        `DELETE FROM commerce_offer_snapshots WHERE id IN (${SNAPSHOT_IDS.map((id) => `'${id}'`).join(', ')});`,
+      )
       .catch(() => undefined);
     await database.close();
   }
