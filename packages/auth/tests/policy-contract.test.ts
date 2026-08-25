@@ -38,8 +38,13 @@ test('real AuthZ policy v2 validates successfully', () => {
   assert.equal(policy.principles.default_deny, true);
   assert.equal(policy.principles.least_privilege, true);
   assert.deepEqual(Object.keys(policy.risk_classes).sort(), ['R0', 'R1', 'R2', 'R3']);
-  assert.deepEqual(Object.keys(policy.actors).sort(), ['claude_orchestrator', 'codex_developer']);
-  assert.equal(policy.permissions.length, 9);
+  assert.deepEqual(Object.keys(policy.actors).sort(), [
+    'claude_orchestrator',
+    'codex_developer',
+    'human_owner',
+    'publishing_service',
+  ]);
+  assert.equal(policy.permissions.length, 12);
   assert.equal(policy.rules.length, 1);
 });
 
