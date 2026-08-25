@@ -255,7 +255,10 @@ function withPublishingMetadata(
 }
 
 function validateFreshness(decision: PublishingFreshnessDecision): void {
-  if (decision.ageSeconds !== null && (!Number.isFinite(decision.ageSeconds) || decision.ageSeconds < 0)) {
+  if (
+    decision.ageSeconds !== null &&
+    (!Number.isFinite(decision.ageSeconds) || decision.ageSeconds < 0)
+  ) {
     throw new Error('freshness.ageSeconds must be null or a finite non-negative number.');
   }
 
@@ -405,20 +408,11 @@ export class PostgresPublishingStore {
           code: input.code,
         },
       });
-      return persistPublication(
-        this.#database,
-        transaction,
-        row,
-        'DRAFT',
-        nextStatus,
-        payload,
-      );
+      return persistPublication(this.#database, transaction, row, 'DRAFT', nextStatus, payload);
     });
   }
 
-  async requestApproval(
-    input: RequestPublishingApprovalInput,
-  ): Promise<PlatformPublicationRecord> {
+  async requestApproval(input: RequestPublishingApprovalInput): Promise<PlatformPublicationRecord> {
     requireUuid(input.publicationId, 'publicationId');
     requirePlatform(input.platform);
     requireUuid(input.approvalId, 'approvalId');
@@ -478,9 +472,7 @@ export class PostgresPublishingStore {
     });
   }
 
-  async decideApproval(
-    input: DecidePublishingApprovalInput,
-  ): Promise<PlatformPublicationRecord> {
+  async decideApproval(input: DecidePublishingApprovalInput): Promise<PlatformPublicationRecord> {
     requireUuid(input.publicationId, 'publicationId');
     requirePlatform(input.platform);
     requireUuid(input.approvalId, 'approvalId');
@@ -623,14 +615,7 @@ export class PostgresPublishingStore {
       }
 
       const payload = withPublishingMetadata(row.payload, patch);
-      return persistPublication(
-        this.#database,
-        transaction,
-        row,
-        'APPROVED',
-        input.kind,
-        payload,
-      );
+      return persistPublication(this.#database, transaction, row, 'APPROVED', input.kind, payload);
     });
   }
 
