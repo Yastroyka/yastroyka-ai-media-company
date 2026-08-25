@@ -118,8 +118,3 @@ export {
   ScopedGitReviewAdapter,
   type ScopedGitReviewAdapterOptions,
 } from './adapters/scoped-git-review-adapter.ts';
-
-export {
-  DryRunGitHubEngineeringTransport,
-  type DryRunGitHubTransportOptions,
-} from './adapters/dry-run-github-transport.ts';
