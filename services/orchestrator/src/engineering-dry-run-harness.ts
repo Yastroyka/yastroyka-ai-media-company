@@ -1,14 +1,13 @@
-import type {
-  EngineeringRunnerResult,
-  EngineeringWorkspacePort,
-} from './engineering-runner.ts';
+import type { EngineeringRunnerResult, EngineeringWorkspacePort } from './engineering-runner.ts';
 import type {
   EngineeringRunnerEnvironment,
   EngineeringRunnerEnvironmentPort,
 } from './adapters/live-runner-environment-adapter.ts';
 
 export interface EngineeringRunnerLike {
-  run(...args: Parameters<import('./engineering-runner.ts').EngineeringRunner['run']>): Promise<EngineeringRunnerResult>;
+  run(
+    ...args: Parameters<import('./engineering-runner.ts').EngineeringRunner['run']>
+  ): Promise<EngineeringRunnerResult>;
 }
 
 export interface EngineeringDryRunHarnessOptions {
