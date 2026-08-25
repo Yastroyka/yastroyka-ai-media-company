@@ -1,3 +1,8 @@
+import {
+  authorizeAndAudit,
+  type AuthorizationAuditSink,
+  type PolicyContractV2,
+} from '@yastroyka/auth';
 import { QueryTypes, type Sequelize, type Transaction } from 'sequelize';
 
 import {
@@ -19,6 +24,8 @@ export type PublishingFreshnessReason =
   | 'FRESHNESS_UNVERIFIABLE'
   | 'SNAPSHOT_CAPTURED_IN_FUTURE';
 
+type PublishingAuthorizationAction = 'decide_approval' | 'prepare' | 'record_result';
+
 export interface PublishingFreshnessDecision {
   readonly status: PublishingFreshnessStatus;
   readonly reason: PublishingFreshnessReason;
@@ -31,6 +38,8 @@ export interface PublishingFreshnessPolicy {
 
 export interface PostgresPublishingStoreOptions {
   readonly freshnessPolicy: PublishingFreshnessPolicy;
+  readonly authorizationPolicy: PolicyContractV2;
+  readonly authorizationAuditSink: AuthorizationAuditSink;
   readonly clock?: () => Date;
 }
 
@@ -83,11 +92,13 @@ export interface ApplyPublishingPreparationInput {
   readonly platform: PublicationPlatform;
   readonly mode: PublishingMode;
   readonly snapshotId: string;
+  readonly actorId: string;
 }
 
 export interface RecordAutoPublishingResultInput {
   readonly publicationId: string;
   readonly platform: PublicationPlatform;
+  readonly actorId: string;
   readonly outcome: 'SUCCESS' | 'FAILURE';
   readonly code: string;
   readonly externalId?: string;
@@ -137,6 +148,13 @@ export class PublishingStateConflictError extends Error {
   constructor() {
     super('Publishing state transition conflict.');
     this.name = 'PublishingStateConflictError';
+  }
+}
+
+export class PublishingAuthorizationDeniedError extends Error {
+  constructor() {
+    super('Publishing authorization denied.');
+    this.name = 'PublishingAuthorizationDeniedError';
   }
 }
 
@@ -534,12 +552,32 @@ async function persistPublication(
 export class PostgresPublishingStore {
   readonly #database: Sequelize;
   readonly #freshnessPolicy: PublishingFreshnessPolicy;
+  readonly #authorizationPolicy: PolicyContractV2;
+  readonly #authorizationAuditSink: AuthorizationAuditSink;
   readonly #clock: () => Date;
 
   constructor(database: Sequelize, options: PostgresPublishingStoreOptions) {
     this.#database = database;
     this.#freshnessPolicy = requireFreshnessPolicy(options.freshnessPolicy);
+    this.#authorizationPolicy = options.authorizationPolicy;
+    this.#authorizationAuditSink = options.authorizationAuditSink;
     this.#clock = options.clock ?? (() => new Date());
+  }
+
+  async #requireAuthorization(actorId: string, action: PublishingAuthorizationAction): Promise<void> {
+    const decision = await authorizeAndAudit(
+      this.#authorizationPolicy,
+      {
+        actor_id: actorId,
+        resource: 'publication',
+        action,
+      },
+      this.#authorizationAuditSink,
+    );
+
+    if (!decision.allowed) {
+      throw new PublishingAuthorizationDeniedError();
+    }
   }
 
   async recordQaResult(input: RecordPublishingQaResultInput): Promise<PlatformPublicationRecord> {
@@ -647,6 +685,8 @@ export class PostgresPublishingStore {
       throw new Error('Unsupported approval decision.');
     }
 
+    await this.#requireAuthorization(input.decidedBy, 'decide_approval');
+
     return this.#database.transaction(async (transaction) => {
       const publication = await selectPublicationForUpdate(
         this.#database,
@@ -720,6 +760,9 @@ export class PostgresPublishingStore {
     requirePlatform(input.platform);
     requireMode(input.mode);
     requireUuid(input.snapshotId, 'snapshotId');
+    requireActor(input.actorId, 'actorId');
+
+    await this.#requireAuthorization(input.actorId, 'prepare');
 
     return this.#database.transaction(async (transaction) => {
       const row = await selectPublicationForUpdate(
@@ -810,7 +853,10 @@ export class PostgresPublishingStore {
   ): Promise<PlatformPublicationRecord> {
     requireUuid(input.publicationId, 'publicationId');
     requirePlatform(input.platform);
+    requireActor(input.actorId, 'actorId');
     requireCode(input.code, 'code');
+
+    await this.#requireAuthorization(input.actorId, 'record_result');
 
     let nextStatus: PlatformPublicationStatus;
     let publishedAt: string | null;
