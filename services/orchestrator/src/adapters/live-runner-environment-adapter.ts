@@ -15,9 +15,6 @@ export interface EngineeringRunnerEnvironmentPort {
 
 export interface LiveRunnerEnvironmentAdapterOptions {
   readonly runnerId: string;
-  readonly expectedNodeMajor?: number;
-  readonly expectedPnpmVersion?: string;
-  readonly requireLinux?: boolean;
 }
 
 interface ToolResult {
@@ -26,6 +23,8 @@ interface ToolResult {
 }
 
 const RUNNER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/u;
+const REQUIRED_NODE_MAJOR = 24;
+const REQUIRED_PNPM_VERSION = '11.20.0';
 
 function requireRunnerId(value: string): void {
   if (!RUNNER_ID_PATTERN.test(value)) {
@@ -55,28 +54,21 @@ function runTool(command: 'git' | 'pnpm', args: readonly string[]): Promise<Tool
 }
 
 export class LiveRunnerEnvironmentAdapter implements EngineeringRunnerEnvironmentPort {
-  readonly #options: Required<LiveRunnerEnvironmentAdapterOptions>;
+  readonly #runnerId: string;
 
   constructor(options: LiveRunnerEnvironmentAdapterOptions) {
     requireRunnerId(options.runnerId);
-    this.#options = {
-      runnerId: options.runnerId,
-      expectedNodeMajor: options.expectedNodeMajor ?? 24,
-      expectedPnpmVersion: options.expectedPnpmVersion ?? '11.20.0',
-      requireLinux: options.requireLinux ?? true,
-    };
+    this.#runnerId = options.runnerId;
   }
 
   async inspect(): Promise<EngineeringRunnerEnvironment> {
-    if (this.#options.requireLinux && process.platform !== 'linux') {
+    if (process.platform !== 'linux') {
       throw new Error('Live Engineering Runner requires Linux.');
     }
 
     const nodeMajor = Number(process.versions.node.split('.')[0]);
-    if (nodeMajor !== this.#options.expectedNodeMajor) {
-      throw new Error(
-        `Live Engineering Runner requires Node.js ${this.#options.expectedNodeMajor}.x.`,
-      );
+    if (nodeMajor !== REQUIRED_NODE_MAJOR) {
+      throw new Error(`Live Engineering Runner requires Node.js ${REQUIRED_NODE_MAJOR}.x.`);
     }
 
     const [pnpm, git] = await Promise.all([
@@ -86,17 +78,15 @@ export class LiveRunnerEnvironmentAdapter implements EngineeringRunnerEnvironmen
     const pnpmVersion = pnpm.stdout.trim();
     const gitVersion = git.stdout.trim();
 
-    if (pnpm.exitCode !== 0 || pnpmVersion !== this.#options.expectedPnpmVersion) {
-      throw new Error(
-        `Live Engineering Runner requires pnpm ${this.#options.expectedPnpmVersion}.`,
-      );
+    if (pnpm.exitCode !== 0 || pnpmVersion !== REQUIRED_PNPM_VERSION) {
+      throw new Error(`Live Engineering Runner requires pnpm ${REQUIRED_PNPM_VERSION}.`);
     }
     if (git.exitCode !== 0 || !/^git version [0-9]+(?:\.[0-9]+){1,3}$/u.test(gitVersion)) {
       throw new Error('Live Engineering Runner requires a valid Git installation.');
     }
 
     return {
-      runnerId: this.#options.runnerId,
+      runnerId: this.#runnerId,
       platform: process.platform,
       arch: process.arch,
       nodeVersion: process.versions.node,
