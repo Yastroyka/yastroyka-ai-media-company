@@ -321,57 +321,60 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
       },
     );
 
-    await t.test('AUTO requires the full gate chain before a publish result can persist', async () => {
-      await publishing.recordQaResult({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        outcome: 'PASS',
-        evidenceId: 'qa-auto-001',
-        code: 'QA_PASSED',
-      });
-      await publishing.requestApproval({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: AUTO_APPROVAL_ID,
-        requestedBy: 'owner',
-      });
-      await publishing.decideApproval({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        approvalId: AUTO_APPROVAL_ID,
-        decision: 'APPROVED',
-        decidedBy: 'owner',
-      });
+    await t.test(
+      'AUTO requires the full gate chain before a publish result can persist',
+      async () => {
+        await publishing.recordQaResult({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          outcome: 'PASS',
+          evidenceId: 'qa-auto-001',
+          code: 'QA_PASSED',
+        });
+        await publishing.requestApproval({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: AUTO_APPROVAL_ID,
+          requestedBy: 'owner',
+        });
+        await publishing.decideApproval({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          approvalId: AUTO_APPROVAL_ID,
+          decision: 'APPROVED',
+          decidedBy: 'owner',
+        });
 
-      const auto = await publishing.applyPreparation({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        mode: 'AUTO',
-        snapshotId: AUTO_SNAPSHOT_ID,
-      });
-      assert.equal(auto.status, 'AUTO');
-      assert.deepEqual(publishingMetadata(auto.payload).freshness, {
-        status: 'FRESH',
-        reason: 'PRICE_STOCK_FRESH',
-        age_seconds: 10,
-      });
+        const auto = await publishing.applyPreparation({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          mode: 'AUTO',
+          snapshotId: AUTO_SNAPSHOT_ID,
+        });
+        assert.equal(auto.status, 'AUTO');
+        assert.deepEqual(publishingMetadata(auto.payload).freshness, {
+          status: 'FRESH',
+          reason: 'PRICE_STOCK_FRESH',
+          age_seconds: 10,
+        });
 
-      const published = await publishing.recordAutoResult({
-        publicationId: AUTO_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        outcome: 'SUCCESS',
-        code: 'VK_POST_CREATED',
-        externalId: 'wall-123_456',
-        publishedAt: '2026-08-25T10:10:00.000Z',
-      });
-      assert.equal(published.status, 'PUBLISHED');
-      assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
-      assert.deepEqual(publishingMetadata(published.payload).result, {
-        outcome: 'SUCCESS',
-        code: 'VK_POST_CREATED',
-        external_id: 'wall-123_456',
-      });
-    });
+        const published = await publishing.recordAutoResult({
+          publicationId: AUTO_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          outcome: 'SUCCESS',
+          code: 'VK_POST_CREATED',
+          externalId: 'wall-123_456',
+          publishedAt: '2026-08-25T10:10:00.000Z',
+        });
+        assert.equal(published.status, 'PUBLISHED');
+        assert.equal(published.publishedAt, '2026-08-25T10:10:00.000Z');
+        assert.deepEqual(publishingMetadata(published.payload).result, {
+          outcome: 'SUCCESS',
+          code: 'VK_POST_CREATED',
+          external_id: 'wall-123_456',
+        });
+      },
+    );
 
     await t.test('rejected human approval is terminal for this publication attempt', async () => {
       await publishing.recordQaResult({
