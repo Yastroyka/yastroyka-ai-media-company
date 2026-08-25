@@ -60,6 +60,13 @@ export {
 } from './engineering-runner.ts';
 
 export {
+  EngineeringDryRunHarness,
+  type EngineeringDryRunHarnessOptions,
+  type EngineeringDryRunReport,
+  type EngineeringRunnerLike,
+} from './engineering-dry-run-harness.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
@@ -93,3 +100,26 @@ export {
   type ModelExchangeEngineeringDecision,
   type ModelExchangeEngineeringIdentity,
 } from './adapters/model-exchange-engineering-adapter.ts';
+
+export {
+  LiveRunnerEnvironmentAdapter,
+  type EngineeringRunnerEnvironment,
+  type EngineeringRunnerEnvironmentPort,
+  type LiveRunnerEnvironmentAdapterOptions,
+} from './adapters/live-runner-environment-adapter.ts';
+
+export {
+  RestrictedValidationAdapter,
+  type RestrictedValidationAdapterOptions,
+  type RestrictedValidationCommand,
+} from './adapters/restricted-validation-adapter.ts';
+
+export {
+  ScopedGitReviewAdapter,
+  type ScopedGitReviewAdapterOptions,
+} from './adapters/scoped-git-review-adapter.ts';
+
+export {
+  DryRunGitHubEngineeringTransport,
+  type DryRunGitHubTransportOptions,
+} from './adapters/dry-run-github-transport.ts';
