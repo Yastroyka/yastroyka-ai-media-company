@@ -21,12 +21,15 @@ The live runner path targets:
 
 `RestrictedValidationAdapter` executes only configured validation checks with `shell: false`.
 
-Allowed tools are intentionally narrow:
+Allowed Git command forms are intentionally exact and read-only:
 
-- read-only Git validation operations (`diff`, `rev-parse`, `status`);
-- `pnpm run <approved-script>`.
+- `git diff --check {baseSha}..HEAD`;
+- `git rev-parse HEAD`;
+- `git status --porcelain=v1 --untracked-files=all`.
 
-Missing required checks return `not_run`; they are never reported as PASS. Mutation-capable Git operations such as `push`, `reset`, `clean`, or branch changes are rejected by the validation adapter.
+A pnpm validation is permitted only as `pnpm run <script>` and only when that script is separately present in the adapter's explicit `allowedPnpmScripts` list.
+
+Missing required checks return `not_run`; they are never reported as PASS. Mutation-capable Git operations, output-writing Git options, arbitrary pnpm commands, and shell execution are rejected by the validation adapter.
 
 ## Independent review boundary
 
@@ -41,9 +44,11 @@ This adapter is deterministic scope/security review for the v0.1 dry-run. It doe
 
 ## GitHub dry-run boundary
 
-`DryRunGitHubEngineeringTransport` exercises the existing `GitHubEngineeringAdapter` contract without network mutation or credentials. It always returns Draft PR evidence and binds simulated CI evidence to the exact PR number and head SHA.
+The representative acceptance test uses a **test-only** in-memory implementation of `GitHubEngineeringTransport` to exercise the existing `GitHubEngineeringAdapter` Draft-PR and exact-head CI contracts without network mutation or credentials.
 
-It MUST NOT be represented as a real GitHub PR or real GitHub Actions result. Canonical repository CI for implementation PRs remains GitHub Actions itself.
+There is deliberately no reusable production-exported dry-run GitHub transport. This prevents a simulated CI result from being accidentally wired into a production decision path.
+
+Test-only Draft/CI evidence MUST NOT be represented as a real GitHub PR or real GitHub Actions result. Canonical repository CI for implementation PRs remains GitHub Actions itself.
 
 ## Representative end-to-end dry-run
 
@@ -58,10 +63,11 @@ The automated acceptance test `services/orchestrator/tests/live-runner-dry-run.t
 7. performs bounded correction attempt 2;
 8. runs scope review against the final exact head;
 9. pushes only the feature branch to the local bare origin;
-10. exercises Draft PR and exact-head CI through the dry-run GitHub transport;
-11. reaches `READY_FOR_OWNER_DECISION` only after the corrected head passes;
-12. disposes the worktree;
-13. verifies local `main` is unchanged.
+10. exercises Draft PR and exact-head CI contracts through the test-only GitHub transport;
+11. reaches `READY_FOR_OWNER_DECISION` inside the simulated run only after the corrected head passes;
+12. keeps the harness report explicitly marked `dryRun: true`;
+13. disposes the worktree;
+14. verifies local `main` is unchanged.
 
 This test demonstrates the execution loop without external provider credentials, GitHub write credentials, owner VPN toggling, or PowerShell.
 
@@ -91,7 +97,7 @@ For a decision-ready run, preserve at minimum:
 - bounded validation/correction evidence;
 - reviewed exact head SHA;
 - feature-branch push evidence;
-- Draft PR/CI exact-head evidence (real or explicitly labelled dry-run);
+- Draft PR/CI exact-head evidence (real or explicitly labelled test-only dry-run);
 - final owner decision state;
 - worktree cleanup result;
 - rollback statement.
@@ -107,7 +113,7 @@ For this slice:
 3. preserve GitHub history and durable evidence required for audit;
 4. do not weaken branch protection, AuthZ, security policy, or required checks as a rollback shortcut.
 
-The dry-run transport has no external GitHub side effects to undo. Temporary local repositories/worktrees are deleted by the test harness.
+The test-only GitHub transport has no external GitHub side effects to undo. Temporary local repositories/worktrees are deleted by the test harness.
 
 ## Promotion beyond dry-run
 
