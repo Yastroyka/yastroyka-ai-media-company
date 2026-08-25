@@ -8,6 +8,7 @@ const STALE_PUBLICATION_ID = '00000000-0000-4000-8000-000000000101';
 const ASSISTED_PUBLICATION_ID = '00000000-0000-4000-8000-000000000102';
 const AUTO_PUBLICATION_ID = '00000000-0000-4000-8000-000000000103';
 const REJECTED_PUBLICATION_ID = '00000000-0000-4000-8000-000000000104';
+const FORGED_PUBLICATION_ID = '00000000-0000-4000-8000-000000000105';
 const STALE_APPROVAL_ID = '00000000-0000-4000-8000-000000000111';
 const ASSISTED_APPROVAL_ID = '00000000-0000-4000-8000-000000000112';
 const AUTO_APPROVAL_ID = '00000000-0000-4000-8000-000000000113';
@@ -62,6 +63,23 @@ test('TASK-010 publishing enforces QA, approval, freshness and bounded results',
 
     const workspaces = createPostgresPlatformWorkspaceStore(database);
     const publishing = createPostgresPublishingStore(database);
+
+    await t.test('draft cannot forge store-owned publishing gate metadata', async () => {
+      await assert.rejects(
+        workspaces.createDraft({
+          publicationId: FORGED_PUBLICATION_ID,
+          masterContentId: MASTER_CONTENT_ID,
+          workspaceId: 'yastroyka-vk-community',
+          platform: 'VK_COMMUNITY',
+          payload: {
+            text: 'forged draft',
+            publishing: { mode: 'AUTO', approval: 'APPROVED' },
+          },
+        }),
+        /Publication payload contains store-owned metadata/u,
+      );
+      assert.equal(await workspaces.findById(FORGED_PUBLICATION_ID), null);
+    });
 
     for (const [publicationId, suffix] of [
       [STALE_PUBLICATION_ID, 'stale'],
