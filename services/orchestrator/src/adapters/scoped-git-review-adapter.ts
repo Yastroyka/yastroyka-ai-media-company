@@ -112,11 +112,21 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
 
   async review(workspace: EngineeringWorkspace, headSha: string): Promise<EngineeringReviewResult> {
     requireSha(headSha);
+    requireSha(workspace.baseSha);
 
     try {
       const head = await runGit(workspace, ['rev-parse', 'HEAD'], this.#timeoutMs);
       if (head.exitCode !== 0 || head.stdout.trim() !== headSha) {
         return { passed: false, reason: 'Review head mismatch.' };
+      }
+
+      const ancestry = await runGit(
+        workspace,
+        ['merge-base', '--is-ancestor', workspace.baseSha, headSha],
+        this.#timeoutMs,
+      );
+      if (ancestry.exitCode !== 0) {
+        return { passed: false, reason: 'Review head is not descended from the approved base.' };
       }
 
       const changed = await runGit(
@@ -125,6 +135,7 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
           'diff',
           '--name-only',
           '-z',
+          '--no-renames',
           '--no-ext-diff',
           '--no-textconv',
           `${workspace.baseSha}..${headSha}`,
