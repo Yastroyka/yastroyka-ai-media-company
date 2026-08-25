@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-  DryRunGitHubEngineeringTransport,
   EngineeringDryRunHarness,
   EngineeringRunner,
   GitHubEngineeringAdapter,
@@ -19,6 +18,7 @@ import {
   type EngineeringRunEvidenceRecord,
   type EngineeringTaskEnvelope,
   type EngineeringWorkerPort,
+  type GitHubEngineeringTransport,
 } from '../src/index.ts';
 
 interface CommandResult {
@@ -87,7 +87,7 @@ test('restricted validation rejects mutation-capable Git commands', () => {
           },
         },
       }),
-    /read-only Git operations/u,
+    /approved read-only Git command forms/u,
   );
 });
 
@@ -151,9 +151,32 @@ test(
         },
       });
       const review = new ScopedGitReviewAdapter({ allowedPathPrefixes: ['dry-run'] });
-      const github = new GitHubEngineeringAdapter(
-        new DryRunGitHubEngineeringTransport({ pullRequestNumber: 901 }),
-      );
+      let publishedHead: string | null = null;
+      const dryRunTransport: GitHubEngineeringTransport = {
+        async upsertDraftPullRequest(input) {
+          publishedHead = input.headSha;
+          return {
+            number: 901,
+            headSha: input.headSha,
+            headBranch: input.branch,
+            baseBranch: input.baseBranch,
+            draft: true,
+          };
+        },
+        async waitForPullRequestCi(prNumber, headSha) {
+          if (prNumber !== 901 || publishedHead !== headSha) {
+            throw new Error('Test-only dry-run CI does not match the published Draft PR head.');
+          }
+          return {
+            prNumber,
+            headSha,
+            status: 'completed',
+            conclusion: 'success',
+            reason: null,
+          };
+        },
+      };
+      const github = new GitHubEngineeringAdapter(dryRunTransport);
       const evidenceRecords: EngineeringRunEvidenceRecord[] = [];
       const runner = new EngineeringRunner({
         authorization,
@@ -203,7 +226,11 @@ test(
       const finalHead = report.result.state.pullRequest?.headSha;
       assert.ok(finalHead);
       const pushedHead = (
-        await run('git', ['--git-dir', origin, 'rev-parse', 'refs/heads/milestone-03/dry-run-e2e'], root)
+        await run(
+          'git',
+          ['--git-dir', origin, 'rev-parse', 'refs/heads/milestone-03/dry-run-e2e'],
+          root,
+        )
       ).stdout.trim();
       assert.equal(pushedHead, finalHead);
       const pushedOutput = (
