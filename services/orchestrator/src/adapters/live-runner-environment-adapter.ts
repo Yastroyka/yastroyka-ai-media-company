@@ -74,15 +74,22 @@ export class LiveRunnerEnvironmentAdapter implements EngineeringRunnerEnvironmen
 
     const nodeMajor = Number(process.versions.node.split('.')[0]);
     if (nodeMajor !== this.#options.expectedNodeMajor) {
-      throw new Error(`Live Engineering Runner requires Node.js ${this.#options.expectedNodeMajor}.x.`);
+      throw new Error(
+        `Live Engineering Runner requires Node.js ${this.#options.expectedNodeMajor}.x.`,
+      );
     }
 
-    const [pnpm, git] = await Promise.all([runTool('pnpm', ['--version']), runTool('git', ['--version'])]);
+    const [pnpm, git] = await Promise.all([
+      runTool('pnpm', ['--version']),
+      runTool('git', ['--version']),
+    ]);
     const pnpmVersion = pnpm.stdout.trim();
     const gitVersion = git.stdout.trim();
 
     if (pnpm.exitCode !== 0 || pnpmVersion !== this.#options.expectedPnpmVersion) {
-      throw new Error(`Live Engineering Runner requires pnpm ${this.#options.expectedPnpmVersion}.`);
+      throw new Error(
+        `Live Engineering Runner requires pnpm ${this.#options.expectedPnpmVersion}.`,
+      );
     }
     if (git.exitCode !== 0 || !/^git version [0-9]+(?:\.[0-9]+){1,3}$/u.test(gitVersion)) {
       throw new Error('Live Engineering Runner requires a valid Git installation.');
