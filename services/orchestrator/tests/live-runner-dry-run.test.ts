@@ -70,7 +70,8 @@ function envelope(baseSha: string): EngineeringTaskEnvelope {
     modelSelection: {
       provider: 'yastroyka',
       model: 'deterministic-dry-run-worker',
-      whyThisModel: 'Acceptance dry-run uses a deterministic worker without external provider credentials.',
+      whyThisModel:
+        'Acceptance dry-run uses a deterministic worker without external provider credentials.',
       fallbackProviders: [],
     },
   };
@@ -131,7 +132,9 @@ test(
           await mkdir(outputDirectory, { recursive: true });
           await writeFile(
             outputPath,
-            input.attempt === 1 ? 'intentional trailing whitespace  \n' : 'validated dry-run output\n',
+            input.attempt === 1
+              ? 'intentional trailing whitespace  \n'
+              : 'validated dry-run output\n',
             'utf8',
           );
           await run('git', ['add', 'dry-run/output.txt'], input.workspace.path);
