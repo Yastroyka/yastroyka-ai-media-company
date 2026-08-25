@@ -19,12 +19,16 @@ const SAFE_PNPM_SCRIPT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/u;
 
 function requireCheckName(value: string): void {
   if (!CHECK_NAME_PATTERN.test(value)) {
-    throw new Error('Validation check name must be a safe identifier no longer than 80 characters.');
+    throw new Error(
+      'Validation check name must be a safe identifier no longer than 80 characters.',
+    );
   }
 }
 
 function sameArgs(actual: readonly string[], expected: readonly string[]): boolean {
-  return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
+  return (
+    actual.length === expected.length && actual.every((value, index) => value === expected[index])
+  );
 }
 
 function validateGitCommand(args: readonly string[]): void {
