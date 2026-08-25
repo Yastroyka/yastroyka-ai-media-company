@@ -33,6 +33,47 @@ test('Codex can write to a repository branch', () => {
   assert.equal(decision.risk_class, 'R1');
 });
 
+test('human owner alone can decide publication approval', () => {
+  const owner = authorize(policy, {
+    actor_id: 'human_owner',
+    resource: 'publication',
+    action: 'decide_approval',
+  });
+  assert.equal(owner.allowed, true);
+  assert.equal(owner.required_scope, 'publication:approve');
+  assert.equal(owner.risk_class, 'R3');
+
+  for (const actorId of ['claude_orchestrator', 'codex_developer', 'publishing_service']) {
+    const denied = authorize(policy, {
+      actor_id: actorId,
+      resource: 'publication',
+      action: 'decide_approval',
+    });
+    assert.equal(denied.allowed, false);
+    assert.equal(denied.reason, 'missing_required_scope');
+  }
+});
+
+test('owned publishing service has narrow publication execution scopes', () => {
+  for (const action of ['prepare', 'record_result']) {
+    const service = authorize(policy, {
+      actor_id: 'publishing_service',
+      resource: 'publication',
+      action,
+    });
+    assert.equal(service.allowed, true);
+    assert.equal(service.risk_class, 'R3');
+
+    const claude = authorize(policy, {
+      actor_id: 'claude_orchestrator',
+      resource: 'publication',
+      action,
+    });
+    assert.equal(claude.allowed, false);
+    assert.equal(claude.reason, 'missing_required_scope');
+  }
+});
+
 test('unknown actors are denied by default', () => {
   const decision = authorize(policy, {
     actor_id: 'unknown_agent',
