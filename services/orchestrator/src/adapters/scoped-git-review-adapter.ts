@@ -110,10 +110,7 @@ export class ScopedGitReviewAdapter implements EngineeringReviewPort {
     this.#timeoutMs = options.timeoutMs ?? 30_000;
   }
 
-  async review(
-    workspace: EngineeringWorkspace,
-    headSha: string,
-  ): Promise<EngineeringReviewResult> {
+  async review(workspace: EngineeringWorkspace, headSha: string): Promise<EngineeringReviewResult> {
     requireSha(headSha);
 
     try {
