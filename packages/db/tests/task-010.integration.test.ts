@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 const TEST_DATABASE_HOST = '127.0.0.1';
@@ -26,14 +27,21 @@ const PUBLICATION_IDS = [
 ] as const;
 
 const SNAPSHOT_IDS = [STALE_SNAPSHOT_ID, ASSISTED_SNAPSHOT_ID, AUTO_SNAPSHOT_ID] as const;
+const POLICY_PATH = resolve(process.cwd(), '../../specs/authz/policy-contract.yaml');
 
 process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
 process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
 
+const { loadPolicyContract } = await import('@yastroyka/auth');
 const { createDatabaseConnection } = await import('../src/connection.ts');
 const { createMigrator } = await import('../src/migrator.ts');
-const { PublishingStateConflictError, createPostgresPublishingStore } =
-  await import('../src/postgres-publishing-store.ts');
+const { createPostgresAuthorizationAuditSink } =
+  await import('../src/postgres-authorization-audit-sink.ts');
+const {
+  PublishingAuthorizationDeniedError,
+  PublishingStateConflictError,
+  createPostgresPublishingStore,
+} = await import('../src/postgres-publishing-store.ts');
 const { createPostgresPlatformWorkspaceStore } =
   await import('../src/postgres-platform-workspace-store.ts');
 
@@ -59,7 +67,7 @@ function snapshotPayload(
   };
 }
 
-test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness', async (t) => {
+test('TASK-010 publishing enforces QA, AuthZ approval and canonical snapshot freshness', async (t) => {
   const database = createDatabaseConnection();
 
   try {
@@ -86,10 +94,17 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
     await database.query(
       `DELETE FROM commerce_offer_snapshots WHERE id IN (${SNAPSHOT_IDS.map((id) => `'${id}'`).join(', ')});`,
     );
+    await database.query(
+      `DELETE FROM authorization_audit_events WHERE resource = 'publication';`,
+    );
 
+    const authorizationPolicy = loadPolicyContract(POLICY_PATH);
+    const authorizationAuditSink = createPostgresAuthorizationAuditSink(database);
     const workspaces = createPostgresPlatformWorkspaceStore(database);
     const publishing = createPostgresPublishingStore(database, {
       freshnessPolicy: { refreshGraceSeconds: 60 },
+      authorizationPolicy,
+      authorizationAuditSink,
       clock: () => new Date(NOW),
     });
 
@@ -97,6 +112,8 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
       () =>
         createPostgresPublishingStore(database, {
           freshnessPolicy: { refreshGraceSeconds: -1 },
+          authorizationPolicy,
+          authorizationAuditSink,
         }),
       /freshnessPolicy.refreshGraceSeconds/u,
     );
@@ -190,7 +207,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
     }
 
     await t.test(
-      'canonical stale snapshot blocks AUTO even when caller requests AUTO',
+      'canonical stale snapshot blocks AUTO and unauthorized approval cannot bypass the gate',
       async () => {
         assert.equal(
           (
@@ -210,11 +227,46 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
               publicationId: STALE_PUBLICATION_ID,
               platform: 'VK_COMMUNITY',
               approvalId: STALE_APPROVAL_ID,
-              requestedBy: 'owner',
+              requestedBy: 'claude_orchestrator',
             })
           ).status,
           'AWAITING_APPROVAL',
         );
+
+        await assert.rejects(
+          publishing.decideApproval({
+            publicationId: STALE_PUBLICATION_ID,
+            platform: 'VK_COMMUNITY',
+            approvalId: STALE_APPROVAL_ID,
+            decision: 'APPROVED',
+            decidedBy: 'claude_orchestrator',
+          }),
+          PublishingAuthorizationDeniedError,
+        );
+        assert.equal(
+          (await workspaces.findById(STALE_PUBLICATION_ID))?.status,
+          'AWAITING_APPROVAL',
+        );
+
+        const [auditRows] = await database.query(
+          `
+            SELECT actor_id, resource, action, risk_class, decision, reason
+            FROM authorization_audit_events
+            WHERE actor_id = 'claude_orchestrator'
+              AND resource = 'publication'
+              AND action = 'decide_approval'
+            ORDER BY occurred_at DESC
+            LIMIT 1;
+          `,
+        );
+        assert.deepEqual(auditRows[0], {
+          actor_id: 'claude_orchestrator',
+          resource: 'publication',
+          action: 'decide_approval',
+          risk_class: 'R3',
+          decision: 'deny',
+          reason: 'missing_required_scope',
+        });
 
         await assert.rejects(
           publishing.applyPreparation({
@@ -222,6 +274,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
             platform: 'VK_COMMUNITY',
             mode: 'AUTO',
             snapshotId: STALE_SNAPSHOT_ID,
+            actorId: 'publishing_service',
           }),
           PublishingStateConflictError,
         );
@@ -233,7 +286,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
               platform: 'VK_COMMUNITY',
               approvalId: STALE_APPROVAL_ID,
               decision: 'APPROVED',
-              decidedBy: 'owner',
+              decidedBy: 'human_owner',
             })
           ).status,
           'APPROVED',
@@ -244,6 +297,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           platform: 'VK_COMMUNITY',
           mode: 'AUTO',
           snapshotId: STALE_SNAPSHOT_ID,
+          actorId: 'publishing_service',
         });
         assert.equal(blocked.status, 'BLOCKED');
         assert.equal(blocked.publishedAt, null);
@@ -265,6 +319,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           publishing.recordAutoResult({
             publicationId: STALE_PUBLICATION_ID,
             platform: 'VK_COMMUNITY',
+            actorId: 'publishing_service',
             outcome: 'SUCCESS',
             code: 'VK_POST_CREATED',
             externalId: 'wall-1_1',
@@ -289,14 +344,14 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           publicationId: ASSISTED_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
           approvalId: ASSISTED_APPROVAL_ID,
-          requestedBy: 'owner',
+          requestedBy: 'claude_orchestrator',
         });
         await publishing.decideApproval({
           publicationId: ASSISTED_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
           approvalId: ASSISTED_APPROVAL_ID,
           decision: 'APPROVED',
-          decidedBy: 'owner',
+          decidedBy: 'human_owner',
         });
 
         const assisted = await publishing.applyPreparation({
@@ -304,6 +359,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           platform: 'VK_COMMUNITY',
           mode: 'ASSISTED',
           snapshotId: ASSISTED_SNAPSHOT_ID,
+          actorId: 'publishing_service',
         });
 
         assert.equal(assisted.status, 'ASSISTED');
@@ -322,7 +378,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
     );
 
     await t.test(
-      'AUTO requires the full gate chain before a publish result can persist',
+      'AUTO requires human approval plus authorized service gates before result persistence',
       async () => {
         await publishing.recordQaResult({
           publicationId: AUTO_PUBLICATION_ID,
@@ -335,21 +391,34 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           publicationId: AUTO_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
           approvalId: AUTO_APPROVAL_ID,
-          requestedBy: 'owner',
+          requestedBy: 'claude_orchestrator',
         });
         await publishing.decideApproval({
           publicationId: AUTO_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
           approvalId: AUTO_APPROVAL_ID,
           decision: 'APPROVED',
-          decidedBy: 'owner',
+          decidedBy: 'human_owner',
         });
+
+        await assert.rejects(
+          publishing.applyPreparation({
+            publicationId: AUTO_PUBLICATION_ID,
+            platform: 'VK_COMMUNITY',
+            mode: 'AUTO',
+            snapshotId: AUTO_SNAPSHOT_ID,
+            actorId: 'claude_orchestrator',
+          }),
+          PublishingAuthorizationDeniedError,
+        );
+        assert.equal((await workspaces.findById(AUTO_PUBLICATION_ID))?.status, 'APPROVED');
 
         const auto = await publishing.applyPreparation({
           publicationId: AUTO_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
           mode: 'AUTO',
           snapshotId: AUTO_SNAPSHOT_ID,
+          actorId: 'publishing_service',
         });
         assert.equal(auto.status, 'AUTO');
         assert.deepEqual(publishingMetadata(auto.payload).freshness, {
@@ -358,9 +427,24 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           age_seconds: 10,
         });
 
+        await assert.rejects(
+          publishing.recordAutoResult({
+            publicationId: AUTO_PUBLICATION_ID,
+            platform: 'VK_COMMUNITY',
+            actorId: 'human_owner',
+            outcome: 'SUCCESS',
+            code: 'VK_POST_CREATED',
+            externalId: 'wall-123_456',
+            publishedAt: '2026-08-25T10:10:00.000Z',
+          }),
+          PublishingAuthorizationDeniedError,
+        );
+        assert.equal((await workspaces.findById(AUTO_PUBLICATION_ID))?.status, 'AUTO');
+
         const published = await publishing.recordAutoResult({
           publicationId: AUTO_PUBLICATION_ID,
           platform: 'VK_COMMUNITY',
+          actorId: 'publishing_service',
           outcome: 'SUCCESS',
           code: 'VK_POST_CREATED',
           externalId: 'wall-123_456',
@@ -388,14 +472,14 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
         publicationId: REJECTED_PUBLICATION_ID,
         platform: 'VK_COMMUNITY',
         approvalId: REJECTED_APPROVAL_ID,
-        requestedBy: 'owner',
+        requestedBy: 'claude_orchestrator',
       });
       const rejected = await publishing.decideApproval({
         publicationId: REJECTED_PUBLICATION_ID,
         platform: 'VK_COMMUNITY',
         approvalId: REJECTED_APPROVAL_ID,
         decision: 'REJECTED',
-        decidedBy: 'owner',
+        decidedBy: 'human_owner',
         reasonCode: 'OWNER_REJECTED',
       });
       assert.equal(rejected.status, 'REJECTED');
@@ -406,6 +490,7 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
           platform: 'VK_COMMUNITY',
           mode: 'ASSISTED',
           snapshotId: ASSISTED_SNAPSHOT_ID,
+          actorId: 'publishing_service',
         }),
         PublishingStateConflictError,
       );
@@ -435,6 +520,9 @@ test('TASK-010 publishing enforces QA, approval and canonical snapshot freshness
       .query(
         `DELETE FROM commerce_offer_snapshots WHERE id IN (${SNAPSHOT_IDS.map((id) => `'${id}'`).join(', ')});`,
       )
+      .catch(() => undefined);
+    await database
+      .query(`DELETE FROM authorization_audit_events WHERE resource = 'publication';`)
       .catch(() => undefined);
     await database.close();
   }
