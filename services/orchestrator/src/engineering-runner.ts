@@ -331,8 +331,7 @@ export class EngineeringRunner {
           state,
           headSha,
           activeModel: evidenceModel === null ? null : { ...evidenceModel },
-          routingDecision:
-            routingEvidence === null ? null : cloneRoutingDecision(routingEvidence),
+          routingDecision: routingEvidence === null ? null : cloneRoutingDecision(routingEvidence),
         },
         recordedAt: this.#now().toISOString(),
       });
