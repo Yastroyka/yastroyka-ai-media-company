@@ -21,17 +21,12 @@ export interface PublishingRefreshDecision {
 
 export interface PublishingBlockedFreshnessDecision {
   readonly status: 'BLOCK';
-  readonly reason: Exclude<
-    PublishingFreshnessReason,
-    'PRICE_STOCK_FRESH' | 'PRICE_STOCK_STALE'
-  >;
+  readonly reason: Exclude<PublishingFreshnessReason, 'PRICE_STOCK_FRESH' | 'PRICE_STOCK_STALE'>;
   readonly ageSeconds: number | null;
 }
 
 export type PublishingFreshnessDecision =
-  | PublishingFreshDecision
-  | PublishingRefreshDecision
-  | PublishingBlockedFreshnessDecision;
+  PublishingFreshDecision | PublishingRefreshDecision | PublishingBlockedFreshnessDecision;
 
 export interface PublishingAttribution {
   readonly productId: string;
@@ -64,9 +59,7 @@ export interface PublishingBlockedPlan {
 }
 
 export type PublishingPreparationPlan =
-  | PublishingAutoPlan
-  | PublishingAssistedPlan
-  | PublishingBlockedPlan;
+  PublishingAutoPlan | PublishingAssistedPlan | PublishingBlockedPlan;
 
 const SAFE_EXTERNAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,256}$/u;
 const BLOCK_REASONS = new Set<PublishingBlockedFreshnessDecision['reason']>([
