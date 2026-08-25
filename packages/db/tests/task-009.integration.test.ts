@@ -105,7 +105,7 @@ test('TASK-009 platform workspaces persist independent publication state', async
     });
 
     await t.test(
-      'unsupported platform and secret-like payloads are rejected before persistence',
+      'unsupported platform and unsafe payloads are rejected before persistence',
       async () => {
         await assert.rejects(
           store.createDraft({
@@ -129,8 +129,36 @@ test('TASK-009 platform workspaces persist independent publication state', async
           /must not contain credentials or secret material/u,
         );
 
-        assert.equal(await store.findById('00000000-0000-4000-8000-000000000094'), null);
-        assert.equal(await store.findById('00000000-0000-4000-8000-000000000095'), null);
+        await assert.rejects(
+          store.createDraft({
+            publicationId: '00000000-0000-4000-8000-000000000096',
+            masterContentId: MASTER_CONTENT_ID,
+            workspaceId: 'yastroyka-vk-community',
+            platform: 'VK_COMMUNITY',
+            payload: [] as never,
+          }),
+          /Publication payload must be a JSON object/u,
+        );
+
+        await assert.rejects(
+          store.createDraft({
+            publicationId: '00000000-0000-4000-8000-000000000097',
+            masterContentId: MASTER_CONTENT_ID,
+            workspaceId: 'yastroyka-vk-community',
+            platform: 'VK_COMMUNITY',
+            payload: { failure_code: 'FORGED' },
+          }),
+          /Publication payload contains store-owned metadata/u,
+        );
+
+        for (const publicationId of [
+          '00000000-0000-4000-8000-000000000094',
+          '00000000-0000-4000-8000-000000000095',
+          '00000000-0000-4000-8000-000000000096',
+          '00000000-0000-4000-8000-000000000097',
+        ]) {
+          assert.equal(await store.findById(publicationId), null);
+        }
       },
     );
 
