@@ -47,6 +47,7 @@ export class VkCommunityResultStateConflictError extends Error {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const SAFE_ACTOR_PATTERN = /^[A-Za-z0-9@._:+-]{1,128}$/u;
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
 const SENSITIVE_KEY_PATTERN = /(secret|token|password|credential|api[_-]?key)/iu;
 
@@ -65,8 +66,8 @@ function requireExactTimestamp(value: string): void {
 
 function requireInput(input: RecordVkCommunitySuccessInput): void {
   requireUuid(input.publicationId);
-  if (input.actorId !== 'publishing_service') {
-    throw new PublishingAuthorizationDeniedError();
+  if (!SAFE_ACTOR_PATTERN.test(input.actorId)) {
+    throw new Error('actorId must be a safe actor identifier.');
   }
   if (
     !Number.isSafeInteger(input.ownerId) ||
