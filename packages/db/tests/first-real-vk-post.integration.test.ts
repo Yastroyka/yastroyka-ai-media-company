@@ -6,7 +6,8 @@ const TEST_DATABASE_HOST = '127.0.0.1';
 const TEST_DATABASE_NAME = 'yastroyka_r1_test';
 const MASTER_CONTENT_ID = '00000000-0000-4000-8000-000000000200';
 const PUBLICATION_ID = '00000000-0000-4000-8000-000000000201';
-const OWNER_ID = -123456;
+const COMMUNITY_ID = 123456;
+const OWNER_ID = -COMMUNITY_ID;
 const POST_ID = 4242;
 const GUID = 'a'.repeat(64);
 const PUBLISHED_AT = '2026-08-26T20:30:00.000Z';
@@ -74,6 +75,7 @@ test('FIRST REAL VK POST result persistence is authorized, canonical and retry-i
     const results = createPostgresVkCommunityResultStore(database, {
       authorizationPolicy,
       authorizationAuditSink,
+      communityId: COMMUNITY_ID,
     });
 
     await t.test('AI actor is denied and denial is audited before mutation', async () => {
@@ -107,6 +109,21 @@ test('FIRST REAL VK POST result persistence is authorized, canonical and retry-i
         action: 'record_result',
         decision: 'deny',
       });
+    });
+
+    await t.test('authorized result for another VK destination fails closed before mutation', async () => {
+      await assert.rejects(
+        results.recordSuccess({
+          publicationId: PUBLICATION_ID,
+          actorId: 'publishing_service',
+          ownerId: -999999,
+          postId: POST_ID,
+          idempotencyKey: GUID,
+          publishedAt: PUBLISHED_AT,
+        }),
+        VkCommunityResultStateConflictError,
+      );
+      assert.equal((await workspaces.findById(PUBLICATION_ID))?.status, 'AUTO');
     });
 
     const input = {
