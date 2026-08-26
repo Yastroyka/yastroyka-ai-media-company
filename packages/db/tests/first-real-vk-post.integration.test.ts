@@ -111,20 +111,23 @@ test('FIRST REAL VK POST result persistence is authorized, canonical and retry-i
       });
     });
 
-    await t.test('authorized result for another VK destination fails closed before mutation', async () => {
-      await assert.rejects(
-        results.recordSuccess({
-          publicationId: PUBLICATION_ID,
-          actorId: 'publishing_service',
-          ownerId: -999999,
-          postId: POST_ID,
-          idempotencyKey: GUID,
-          publishedAt: PUBLISHED_AT,
-        }),
-        VkCommunityResultStateConflictError,
-      );
-      assert.equal((await workspaces.findById(PUBLICATION_ID))?.status, 'AUTO');
-    });
+    await t.test(
+      'authorized result for another VK destination fails closed before mutation',
+      async () => {
+        await assert.rejects(
+          results.recordSuccess({
+            publicationId: PUBLICATION_ID,
+            actorId: 'publishing_service',
+            ownerId: -999999,
+            postId: POST_ID,
+            idempotencyKey: GUID,
+            publishedAt: PUBLISHED_AT,
+          }),
+          VkCommunityResultStateConflictError,
+        );
+        assert.equal((await workspaces.findById(PUBLICATION_ID))?.status, 'AUTO');
+      },
+    );
 
     const input = {
       publicationId: PUBLICATION_ID,
