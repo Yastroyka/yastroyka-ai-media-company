@@ -29,6 +29,7 @@ export interface VkCommunityPersistedResult {
 export interface PostgresVkCommunityResultStoreOptions {
   readonly authorizationPolicy: PolicyContractV2;
   readonly authorizationAuditSink: AuthorizationAuditSink;
+  readonly communityId: number;
 }
 
 interface PublicationRow {
@@ -55,6 +56,13 @@ function requireUuid(value: string): void {
   if (!UUID_PATTERN.test(value)) {
     throw new Error('publicationId must be a UUID.');
   }
+}
+
+function requireCommunityId(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647) {
+    throw new Error('communityId must be a positive 32-bit integer.');
+  }
+  return value;
 }
 
 function requireExactTimestamp(value: string): void {
@@ -198,15 +206,20 @@ export class PostgresVkCommunityResultStore {
   readonly #database: Sequelize;
   readonly #authorizationPolicy: PolicyContractV2;
   readonly #authorizationAuditSink: AuthorizationAuditSink;
+  readonly #ownerId: number;
 
   constructor(database: Sequelize, options: PostgresVkCommunityResultStoreOptions) {
     this.#database = database;
     this.#authorizationPolicy = options.authorizationPolicy;
     this.#authorizationAuditSink = options.authorizationAuditSink;
+    this.#ownerId = -requireCommunityId(options.communityId);
   }
 
   async recordSuccess(input: RecordVkCommunitySuccessInput): Promise<VkCommunityPersistedResult> {
     requireInput(input);
+    if (input.ownerId !== this.#ownerId) {
+      throw new VkCommunityResultStateConflictError();
+    }
     const authorization = await authorizeAndAudit(
       this.#authorizationPolicy,
       {
