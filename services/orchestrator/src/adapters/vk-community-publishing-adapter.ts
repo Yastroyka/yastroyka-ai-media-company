@@ -9,6 +9,7 @@ export type VkCommunityPublishingErrorCode =
   | 'VK_PUBLICATION_INVALID'
   | 'VK_SECRET_REFERENCE_INVALID'
   | 'VK_SECRET_ACCESS_FAILED'
+  | 'VK_SECRET_CONSUMER_REUSED'
   | 'VK_TRANSPORT_FAILED'
   | 'VK_TRANSPORT_EVIDENCE_INVALID';
 
@@ -257,21 +258,29 @@ export class VkCommunityPublishingAdapter {
     if (record === null) {
       fail('VK_PUBLICATION_NOT_FOUND');
     }
-    if (record.publicationId !== publicationId || record.platform !== 'VK_COMMUNITY') {
+
+    try {
+      if (record.publicationId !== publicationId || record.platform !== 'VK_COMMUNITY') {
+        fail('VK_PUBLICATION_INVALID');
+      }
+      if (record.status !== 'AUTO') {
+        fail('VK_PUBLICATION_NOT_AUTO');
+      }
+
+      return Object.freeze({
+        publicationId,
+        platform: 'VK_COMMUNITY' as const,
+        ownerId: -this.#communityId,
+        fromGroup: true as const,
+        message: parseMessage(record.payload),
+        idempotencyKey: deterministicIdempotencyKey(publicationId),
+      });
+    } catch (error) {
+      if (error instanceof VkCommunityPublishingError) {
+        throw error;
+      }
       fail('VK_PUBLICATION_INVALID');
     }
-    if (record.status !== 'AUTO') {
-      fail('VK_PUBLICATION_NOT_AUTO');
-    }
-
-    return Object.freeze({
-      publicationId,
-      platform: 'VK_COMMUNITY' as const,
-      ownerId: -this.#communityId,
-      fromGroup: true as const,
-      message: parseMessage(record.payload),
-      idempotencyKey: deterministicIdempotencyKey(publicationId),
-    });
   }
 
   async preview(publicationId: string): Promise<VkCommunityPublishingPreview> {
@@ -288,12 +297,25 @@ export class VkCommunityPublishingAdapter {
     } catch {
       fail('VK_IDENTITY_BINDING_FAILED');
     }
-    requireTrustedBinding(binding, this.#clock());
+
+    try {
+      requireTrustedBinding(binding, this.#clock());
+    } catch (error) {
+      if (error instanceof VkCommunityPublishingError) {
+        throw error;
+      }
+      fail('VK_IDENTITY_DENIED');
+    }
 
     const preview = await this.#buildPreview(publicationId);
+    let secretConsumed = false;
 
     try {
       return await this.#secretProvider.withSecret(this.#secretReference, async (secret) => {
+        if (secretConsumed) {
+          fail('VK_SECRET_CONSUMER_REUSED');
+        }
+        secretConsumed = true;
         requireAccessToken(secret);
 
         let transportResult: VkCommunityPublishTransportResult;
@@ -311,27 +333,34 @@ export class VkCommunityPublishingAdapter {
           fail('VK_TRANSPORT_FAILED');
         }
 
-        if (
-          transportResult.ownerId !== preview.ownerId ||
-          !Number.isSafeInteger(transportResult.postId) ||
-          transportResult.postId < 1
-        ) {
+        try {
+          if (
+            transportResult.ownerId !== preview.ownerId ||
+            !Number.isSafeInteger(transportResult.postId) ||
+            transportResult.postId < 1
+          ) {
+            fail('VK_TRANSPORT_EVIDENCE_INVALID');
+          }
+
+          const publishedAt = this.#clock();
+          if (Number.isNaN(publishedAt.getTime())) {
+            fail('VK_TRANSPORT_EVIDENCE_INVALID');
+          }
+
+          return Object.freeze({
+            publicationId: preview.publicationId,
+            platform: 'VK_COMMUNITY' as const,
+            ownerId: transportResult.ownerId,
+            postId: transportResult.postId,
+            idempotencyKey: preview.idempotencyKey,
+            publishedAt: publishedAt.toISOString(),
+          });
+        } catch (error) {
+          if (error instanceof VkCommunityPublishingError) {
+            throw error;
+          }
           fail('VK_TRANSPORT_EVIDENCE_INVALID');
         }
-
-        const publishedAt = this.#clock();
-        if (Number.isNaN(publishedAt.getTime())) {
-          fail('VK_TRANSPORT_EVIDENCE_INVALID');
-        }
-
-        return Object.freeze({
-          publicationId: preview.publicationId,
-          platform: 'VK_COMMUNITY' as const,
-          ownerId: transportResult.ownerId,
-          postId: transportResult.postId,
-          idempotencyKey: preview.idempotencyKey,
-          publishedAt: publishedAt.toISOString(),
-        });
       });
     } catch (error) {
       if (error instanceof VkCommunityPublishingError) {
