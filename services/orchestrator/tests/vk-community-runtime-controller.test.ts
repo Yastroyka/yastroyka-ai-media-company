@@ -86,10 +86,7 @@ function buildGrant(overrides: GrantOverrides = {}) {
   };
 }
 
-function createSecretProvider(
-  accesses: string[],
-  overrides: Partial<Record<string, string>> = {},
-) {
+function createSecretProvider(accesses: string[], overrides: Partial<Record<string, string>> = {}) {
   const values: Record<string, string> = {
     [OWNER_APPROVAL_SECRET_REFERENCE.key]: APPROVAL_SECRET,
     [IDENTITY_SECRET_REFERENCE.key]: IDENTITY_SECRET,
