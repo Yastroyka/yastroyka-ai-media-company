@@ -29,12 +29,20 @@ export interface VkCommunityResultPersistencePort {
 }
 
 export interface VkCommunityLivePublisherOptions {
+  readonly communityId: number;
   readonly execution: VkCommunityExecutionPort;
   readonly results: VkCommunityResultPersistencePort;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
+
+function requireCommunityId(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647) {
+    throw new Error('communityId must be a positive 32-bit integer.');
+  }
+  return value;
+}
 
 function isExactTimestamp(value: string): boolean {
   const milliseconds = Date.parse(value);
@@ -43,15 +51,14 @@ function isExactTimestamp(value: string): boolean {
 
 function requireExternalEvidence(
   requestedPublicationId: string,
+  expectedOwnerId: number,
   external: VkCommunityPublishingResult,
 ): void {
   if (
     !UUID_PATTERN.test(requestedPublicationId) ||
     external.publicationId !== requestedPublicationId ||
     external.platform !== 'VK_COMMUNITY' ||
-    !Number.isSafeInteger(external.ownerId) ||
-    external.ownerId >= 0 ||
-    external.ownerId < -2_147_483_647 ||
+    external.ownerId !== expectedOwnerId ||
     !Number.isSafeInteger(external.postId) ||
     external.postId < 1 ||
     !IDEMPOTENCY_KEY_PATTERN.test(external.idempotencyKey) ||
@@ -77,10 +84,12 @@ function evidenceMatches(
 }
 
 export class VkCommunityLivePublisher {
+  readonly #ownerId: number;
   readonly #execution: VkCommunityExecutionPort;
   readonly #results: VkCommunityResultPersistencePort;
 
   constructor(options: VkCommunityLivePublisherOptions) {
+    this.#ownerId = -requireCommunityId(options.communityId);
     this.#execution = options.execution;
     this.#results = options.results;
   }
@@ -90,7 +99,7 @@ export class VkCommunityLivePublisher {
     identityContext: unknown,
   ): Promise<VkCommunityPublishingResult> {
     const external = await this.#execution.publish(publicationId, identityContext);
-    requireExternalEvidence(publicationId, external);
+    requireExternalEvidence(publicationId, this.#ownerId, external);
 
     let persisted: VkCommunityPersistedResultRecord;
     try {
