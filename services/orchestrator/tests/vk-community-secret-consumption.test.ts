@@ -33,6 +33,8 @@ test('a buggy secret provider cannot cause a second external publish', async () 
           actorId: 'publishing_service',
           audience: 'vk-community-publish',
           bindingId: 'session:publishing:single-use',
+          publicationId: PUBLICATION_ID,
+          ownerId: -123456,
           issuedAt: '2026-08-26T14:59:00.000Z',
           expiresAt: '2026-08-26T15:01:00.000Z',
         };
