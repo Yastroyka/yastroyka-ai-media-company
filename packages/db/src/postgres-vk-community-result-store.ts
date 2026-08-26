@@ -157,9 +157,7 @@ async function selectForUpdate(
   return row;
 }
 
-function expectedPersistedResult(
-  input: RecordVkCommunitySuccessInput,
-): VkCommunityPersistedResult {
+function expectedPersistedResult(input: RecordVkCommunitySuccessInput): VkCommunityPersistedResult {
   return Object.freeze({
     publicationId: input.publicationId,
     platform: 'VK_COMMUNITY' as const,
