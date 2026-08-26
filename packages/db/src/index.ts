@@ -30,6 +30,7 @@ export {
 
 export {
   PUBLICATION_PLATFORMS,
+  PUBLICATION_STATUSES,
   PlatformPublicationStateConflictError,
   PostgresPlatformWorkspaceStore,
   createPostgresPlatformWorkspaceStore,
@@ -38,3 +39,26 @@ export {
   type PlatformPublicationStatus,
   type PublicationPlatform,
 } from './postgres-platform-workspace-store.ts';
+
+export {
+  PostgresPublishingStore,
+  PublishingAuthorizationDeniedError,
+  PublishingStateConflictError,
+  createPostgresPublishingStore,
+  type ApplyPublishingPreparationInput,
+  type DecidePublishingApprovalInput,
+  type PostgresPublishingStoreOptions,
+  type PublishingApprovalDecision,
+  type PublishingAssistedPacket,
+  type PublishingAttribution,
+  type PublishingFreshnessDecision,
+  type PublishingFreshnessPolicy,
+  type PublishingFreshnessReason,
+  type PublishingFreshnessStatus,
+  type PublishingMode,
+  type PublishingPreparationKind,
+  type PublishingQaOutcome,
+  type RecordAutoPublishingResultInput,
+  type RecordPublishingQaResultInput,
+  type RequestPublishingApprovalInput,
+} from './postgres-publishing-store.ts';

@@ -1,9 +1,21 @@
 import { QueryTypes, type Sequelize } from 'sequelize';
 
 export const PUBLICATION_PLATFORMS = ['VK_COMMUNITY', 'VK_VIDEO', 'MAX'] as const;
+export const PUBLICATION_STATUSES = [
+  'DRAFT',
+  'QA_PASSED',
+  'AWAITING_APPROVAL',
+  'APPROVED',
+  'AUTO',
+  'ASSISTED',
+  'PUBLISHED',
+  'BLOCKED',
+  'REJECTED',
+  'FAILED',
+] as const;
 
 export type PublicationPlatform = (typeof PUBLICATION_PLATFORMS)[number];
-export type PlatformPublicationStatus = 'DRAFT' | 'FAILED';
+export type PlatformPublicationStatus = (typeof PUBLICATION_STATUSES)[number];
 
 export interface CreatePlatformPublicationDraftInput {
   readonly publicationId: string;
@@ -39,7 +51,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const WORKSPACE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const FAILURE_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,79}$/u;
 const SENSITIVE_KEY_PATTERN = /(secret|token|password|credential|api[_-]?key)/iu;
-const STORE_OWNED_PAYLOAD_KEYS = new Set(['failure_code']);
+const STORE_OWNED_PAYLOAD_KEYS = new Set(['failure_code', 'publishing']);
 
 export class PlatformPublicationStateConflictError extends Error {
   constructor() {
@@ -67,8 +79,8 @@ function requirePlatform(value: string): asserts value is PublicationPlatform {
 }
 
 function requireStatus(value: string): asserts value is PlatformPublicationStatus {
-  if (value !== 'DRAFT' && value !== 'FAILED') {
-    throw new Error('Unsupported TASK-009 publication status.');
+  if (!(PUBLICATION_STATUSES as readonly string[]).includes(value)) {
+    throw new Error('Unsupported publication status.');
   }
 }
 

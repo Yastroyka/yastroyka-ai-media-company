@@ -67,6 +67,22 @@ export {
 } from './engineering-dry-run-harness.ts';
 
 export {
+  planPublishingPreparation,
+  type PublishingAssistedPlan,
+  type PublishingAttribution,
+  type PublishingAutoPlan,
+  type PublishingBlockedFreshnessDecision,
+  type PublishingBlockedPlan,
+  type PublishingFreshDecision,
+  type PublishingFreshnessDecision,
+  type PublishingFreshnessReason,
+  type PublishingMode,
+  type PublishingPreparationInput,
+  type PublishingPreparationPlan,
+  type PublishingRefreshDecision,
+} from './publishing-run.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
