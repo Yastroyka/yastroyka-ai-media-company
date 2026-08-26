@@ -23,10 +23,8 @@ const { createPostgresAuthorizationAuditSink } =
 const { PublishingAuthorizationDeniedError } = await import('../src/postgres-publishing-store.ts');
 const { createPostgresPlatformWorkspaceStore } =
   await import('../src/postgres-platform-workspace-store.ts');
-const {
-  VkCommunityResultStateConflictError,
-  createPostgresVkCommunityResultStore,
-} = await import('../src/postgres-vk-community-result-store.ts');
+const { VkCommunityResultStateConflictError, createPostgresVkCommunityResultStore } =
+  await import('../src/postgres-vk-community-result-store.ts');
 
 function objectValue(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && !Array.isArray(value) && typeof value === 'object');
@@ -195,7 +193,9 @@ test('FIRST REAL VK POST result persistence is authorized, canonical and retry-i
       assert.equal(publication?.publishedAt, PUBLISHED_AT);
     });
   } finally {
-    await database.query(`DELETE FROM publications WHERE id = '${PUBLICATION_ID}';`).catch(() => {});
+    await database
+      .query(`DELETE FROM publications WHERE id = '${PUBLICATION_ID}';`)
+      .catch(() => {});
     await database
       .query(
         `DELETE FROM authorization_audit_events WHERE resource = 'publication' AND action = 'record_result';`,
