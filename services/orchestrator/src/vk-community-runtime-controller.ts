@@ -1,16 +1,18 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import type {
-  VkCommunityPublishingPreview,
-  VkCommunityPublishingResult,
-  VkCommunitySecretProviderPort,
-  VkCommunitySecretReference,
+import {
+  VkCommunityPublishingError,
+  type VkCommunityPublishingPreview,
+  type VkCommunityPublishingResult,
+  type VkCommunitySecretProviderPort,
+  type VkCommunitySecretReference,
 } from './adapters/vk-community-publishing-adapter.ts';
 
 export type VkCommunityRuntimeGateErrorCode =
   | 'VK_OWNER_GRANT_FAILED'
   | 'VK_IDENTITY_ISSUE_FAILED'
   | 'VK_RUNTIME_PREVIEW_INVALID'
+  | 'VK_RUNTIME_PUBLISH_FAILED'
   | 'VK_RUNTIME_RESULT_INVALID';
 
 export class VkCommunityRuntimeGateError extends Error {
@@ -517,10 +519,13 @@ export class VkCommunityRuntimeController {
     try {
       result = await this.#publisher.publishAndPersist(publicationId, identity);
     } catch (error) {
-      if (error instanceof VkCommunityRuntimeGateError) {
+      if (
+        error instanceof VkCommunityRuntimeGateError ||
+        error instanceof VkCommunityPublishingError
+      ) {
         throw error;
       }
-      throw error;
+      fail('VK_RUNTIME_PUBLISH_FAILED');
     }
 
     return requireResult(result, preview);
