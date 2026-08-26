@@ -33,6 +33,34 @@ export interface VkCommunityLivePublisherOptions {
   readonly results: VkCommunityResultPersistencePort;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
+
+function isExactTimestamp(value: string): boolean {
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString() === value;
+}
+
+function requireExternalEvidence(
+  requestedPublicationId: string,
+  external: VkCommunityPublishingResult,
+): void {
+  if (
+    !UUID_PATTERN.test(requestedPublicationId) ||
+    external.publicationId !== requestedPublicationId ||
+    external.platform !== 'VK_COMMUNITY' ||
+    !Number.isSafeInteger(external.ownerId) ||
+    external.ownerId >= 0 ||
+    external.ownerId < -2_147_483_647 ||
+    !Number.isSafeInteger(external.postId) ||
+    external.postId < 1 ||
+    !IDEMPOTENCY_KEY_PATTERN.test(external.idempotencyKey) ||
+    !isExactTimestamp(external.publishedAt)
+  ) {
+    throw new VkCommunityPublishingError('VK_RESULT_EVIDENCE_INVALID');
+  }
+}
+
 function evidenceMatches(
   external: VkCommunityPublishingResult,
   persisted: VkCommunityPersistedResultRecord,
@@ -62,6 +90,7 @@ export class VkCommunityLivePublisher {
     identityContext: unknown,
   ): Promise<VkCommunityPublishingResult> {
     const external = await this.#execution.publish(publicationId, identityContext);
+    requireExternalEvidence(publicationId, external);
 
     let persisted: VkCommunityPersistedResultRecord;
     try {
