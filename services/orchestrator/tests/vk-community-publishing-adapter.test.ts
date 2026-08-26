@@ -33,7 +33,9 @@ function publication(
   };
 }
 
-function validBinding(overrides: Partial<PublishingIdentityBinding> = {}): PublishingIdentityBinding {
+function validBinding(
+  overrides: Partial<PublishingIdentityBinding> = {},
+): PublishingIdentityBinding {
   return {
     actorId: 'publishing_service',
     audience: 'vk-community-publish',
@@ -140,7 +142,10 @@ test('preview fails closed unless canonical publication is exact VK_COMMUNITY AU
       },
     }),
   );
-  await assert.rejects(() => wrongStatus.preview(PUBLICATION_ID), expectCode('VK_PUBLICATION_NOT_AUTO'));
+  await assert.rejects(
+    () => wrongStatus.preview(PUBLICATION_ID),
+    expectCode('VK_PUBLICATION_NOT_AUTO'),
+  );
 
   const wrongPlatform = new VkCommunityPublishingAdapter(
     defaultOptions({
@@ -151,7 +156,10 @@ test('preview fails closed unless canonical publication is exact VK_COMMUNITY AU
       },
     }),
   );
-  await assert.rejects(() => wrongPlatform.preview(PUBLICATION_ID), expectCode('VK_PUBLICATION_INVALID'));
+  await assert.rejects(
+    () => wrongPlatform.preview(PUBLICATION_ID),
+    expectCode('VK_PUBLICATION_INVALID'),
+  );
 
   const malformedPayload = new VkCommunityPublishingAdapter(
     defaultOptions({
