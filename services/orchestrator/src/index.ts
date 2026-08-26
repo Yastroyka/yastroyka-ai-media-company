@@ -134,3 +134,21 @@ export {
   ScopedGitReviewAdapter,
   type ScopedGitReviewAdapterOptions,
 } from './adapters/scoped-git-review-adapter.ts';
+
+export {
+  VkCommunityPublishingAdapter,
+  VkCommunityPublishingError,
+  type PublishingIdentityBinding,
+  type PublishingIdentityBindingPort,
+  type VkCommunityPublishTransport,
+  type VkCommunityPublishTransportResult,
+  type VkCommunityPublicationRecord,
+  type VkCommunityPublicationStatePort,
+  type VkCommunityPublishingAdapterOptions,
+  type VkCommunityPublishingErrorCode,
+  type VkCommunityPublishingPreview,
+  type VkCommunityPublishingResult,
+  type VkCommunitySecretProviderPort,
+  type VkCommunitySecretReference,
+  type VkCommunityWallPostRequest,
+} from './adapters/vk-community-publishing-adapter.ts';
