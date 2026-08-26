@@ -215,15 +215,7 @@ function parseOwnerGrant(
   const assertion = expectPlainObject(envelope.assertion, code);
   requireExactKeys(
     assertion,
-    [
-      'actor_id',
-      'audience',
-      'grant_id',
-      'publication_id',
-      'owner_id',
-      'issued_at',
-      'expires_at',
-    ],
+    ['actor_id', 'audience', 'grant_id', 'publication_id', 'owner_id', 'issued_at', 'expires_at'],
     code,
   );
 
@@ -507,12 +499,7 @@ export class VkCommunityRuntimeController {
       this.#publishingIdentitySecretReference,
       'VK_IDENTITY_ISSUE_FAILED',
       (secret) =>
-        createPublishingIdentityEnvelope(
-          grant,
-          now,
-          this.#identityLifetimeMilliseconds,
-          secret,
-        ),
+        createPublishingIdentityEnvelope(grant, now, this.#identityLifetimeMilliseconds, secret),
     );
 
     let result: VkCommunityPublishingResult;
