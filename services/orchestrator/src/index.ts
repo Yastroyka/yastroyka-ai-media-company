@@ -83,6 +83,14 @@ export {
 } from './publishing-run.ts';
 
 export {
+  VkCommunityLivePublisher,
+  type VkCommunityExecutionPort,
+  type VkCommunityLivePublisherOptions,
+  type VkCommunityPersistedResultRecord,
+  type VkCommunityResultPersistencePort,
+} from './vk-community-live-publisher.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
@@ -107,6 +115,12 @@ export {
   type GitHubDraftPullRequestTransportResult,
   type GitHubEngineeringTransport,
 } from './adapters/github-engineering-adapter.ts';
+
+export {
+  HmacPublishingIdentityBinding,
+  PublishingIdentityVerificationError,
+  type HmacPublishingIdentityBindingOptions,
+} from './adapters/hmac-publishing-identity-binding.ts';
 
 export {
   ModelExchangeEngineeringAdapter,
@@ -134,6 +148,14 @@ export {
   ScopedGitReviewAdapter,
   type ScopedGitReviewAdapterOptions,
 } from './adapters/scoped-git-review-adapter.ts';
+
+export {
+  VK_API_VERSION,
+  VK_WALL_POST_ENDPOINT,
+  VkCommunityHttpTransport,
+  VkCommunityHttpTransportError,
+  type VkCommunityHttpTransportOptions,
+} from './adapters/vk-community-http-transport.ts';
 
 export {
   VkCommunityPublishingAdapter,

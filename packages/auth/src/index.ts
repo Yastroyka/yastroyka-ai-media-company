@@ -27,3 +27,11 @@ export {
   type SecretProvider,
   type SecretReference,
 } from './secret-provider.ts';
+
+export {
+  createEnvironmentSecretProvider,
+  EnvironmentSecretProvider,
+  SecretAccessError,
+  type EnvironmentSecretBinding,
+  type EnvironmentSecretProviderOptions,
+} from './environment-secret-provider.ts';

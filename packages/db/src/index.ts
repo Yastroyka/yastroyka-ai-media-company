@@ -62,3 +62,12 @@ export {
   type RecordPublishingQaResultInput,
   type RequestPublishingApprovalInput,
 } from './postgres-publishing-store.ts';
+
+export {
+  PostgresVkCommunityResultStore,
+  VkCommunityResultStateConflictError,
+  createPostgresVkCommunityResultStore,
+  type PostgresVkCommunityResultStoreOptions,
+  type RecordVkCommunitySuccessInput,
+  type VkCommunityPersistedResult,
+} from './postgres-vk-community-result-store.ts';

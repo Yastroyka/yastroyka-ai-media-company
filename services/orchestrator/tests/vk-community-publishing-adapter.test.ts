@@ -40,6 +40,8 @@ function validBinding(
     actorId: 'publishing_service',
     audience: 'vk-community-publish',
     bindingId: 'session:publishing:001',
+    publicationId: PUBLICATION_ID,
+    ownerId: -123456,
     issuedAt: '2026-08-26T14:59:00.000Z',
     expiresAt: '2026-08-26T15:01:00.000Z',
     ...overrides,
@@ -215,6 +217,36 @@ test('untrusted identity is denied before canonical publication, secret and tran
   assert.equal(publicationReads, 0);
   assert.equal(secretCalls, 0);
   assert.equal(transportCalls, 0);
+});
+
+test('identity binding cannot be replayed across publication or destination', async () => {
+  const wrongPublication = new VkCommunityPublishingAdapter(
+    defaultOptions({
+      identityBinding: {
+        async bind() {
+          return validBinding({ publicationId: '66666666-6666-4666-8666-666666666666' });
+        },
+      },
+    }),
+  );
+  await assert.rejects(
+    () => wrongPublication.publish(PUBLICATION_ID, null),
+    expectCode('VK_IDENTITY_DENIED'),
+  );
+
+  const wrongDestination = new VkCommunityPublishingAdapter(
+    defaultOptions({
+      identityBinding: {
+        async bind() {
+          return validBinding({ ownerId: -999999 });
+        },
+      },
+    }),
+  );
+  await assert.rejects(
+    () => wrongDestination.publish(PUBLICATION_ID, null),
+    expectCode('VK_IDENTITY_DENIED'),
+  );
 });
 
 test('expired or overlong publishing bindings fail closed', async () => {

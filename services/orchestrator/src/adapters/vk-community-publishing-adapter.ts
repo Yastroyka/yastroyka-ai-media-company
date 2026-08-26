@@ -10,7 +10,9 @@ export type VkCommunityPublishingErrorCode =
   | 'VK_SECRET_REFERENCE_INVALID'
   | 'VK_SECRET_ACCESS_FAILED'
   | 'VK_TRANSPORT_FAILED'
-  | 'VK_TRANSPORT_EVIDENCE_INVALID';
+  | 'VK_TRANSPORT_EVIDENCE_INVALID'
+  | 'VK_RESULT_PERSIST_FAILED'
+  | 'VK_RESULT_EVIDENCE_INVALID';
 
 export class VkCommunityPublishingError extends Error {
   readonly code: VkCommunityPublishingErrorCode;
@@ -37,6 +39,8 @@ export interface PublishingIdentityBinding {
   readonly actorId: string;
   readonly audience: string;
   readonly bindingId: string;
+  readonly publicationId: string;
+  readonly ownerId: number;
   readonly issuedAt: string;
   readonly expiresAt: string;
 }
@@ -199,12 +203,19 @@ function parseExactTimestamp(value: string): number | null {
   return milliseconds;
 }
 
-function requireTrustedBinding(binding: PublishingIdentityBinding, now: Date): void {
+function requireTrustedBinding(
+  binding: PublishingIdentityBinding,
+  publicationId: string,
+  ownerId: number,
+  now: Date,
+): void {
   const issuedAt = parseExactTimestamp(binding.issuedAt);
   const expiresAt = parseExactTimestamp(binding.expiresAt);
   if (
     binding.actorId !== EXPECTED_ACTOR_ID ||
     binding.audience !== EXPECTED_AUDIENCE ||
+    binding.publicationId !== publicationId ||
+    binding.ownerId !== ownerId ||
     !SAFE_ID_PATTERN.test(binding.bindingId) ||
     issuedAt === null ||
     expiresAt === null ||
@@ -341,6 +352,9 @@ export class VkCommunityPublishingAdapter {
     publicationId: string,
     identityContext: unknown,
   ): Promise<VkCommunityPublishingResult> {
+    requireUuid(publicationId);
+    const ownerId = -this.#communityId;
+
     let binding: PublishingIdentityBinding;
     try {
       binding = await this.#identityBinding.bind(identityContext);
@@ -349,7 +363,7 @@ export class VkCommunityPublishingAdapter {
     }
 
     try {
-      requireTrustedBinding(binding, this.#clock());
+      requireTrustedBinding(binding, publicationId, ownerId, this.#clock());
     } catch (error) {
       if (error instanceof VkCommunityPublishingError) {
         throw error;
