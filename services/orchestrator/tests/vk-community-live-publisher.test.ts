@@ -63,36 +63,36 @@ test('successful VK write is followed by exact canonical result persistence', as
 test(
   'execution evidence for another publication or VK destination is rejected before persistence',
   async () => {
-  for (const external of [
-    { ...EXTERNAL_RESULT, publicationId: OTHER_PUBLICATION_ID },
-    { ...EXTERNAL_RESULT, ownerId: -999999 },
-  ]) {
-    let resultWrites = 0;
-    const publisher = new VkCommunityLivePublisher({
-      communityId: COMMUNITY_ID,
-      execution: {
-        async publish() {
-          return external;
+    for (const external of [
+      { ...EXTERNAL_RESULT, publicationId: OTHER_PUBLICATION_ID },
+      { ...EXTERNAL_RESULT, ownerId: -999999 },
+    ]) {
+      let resultWrites = 0;
+      const publisher = new VkCommunityLivePublisher({
+        communityId: COMMUNITY_ID,
+        execution: {
+          async publish() {
+            return external;
+          },
         },
-      },
-      results: {
-        async recordSuccess() {
-          resultWrites += 1;
-          return persistedResult();
+        results: {
+          async recordSuccess() {
+            resultWrites += 1;
+            return persistedResult();
+          },
         },
-      },
-    });
+      });
 
-    await assert.rejects(
-      () => publisher.publishAndPersist(PUBLICATION_ID, null),
-      (error: unknown) => {
-        assert.ok(error instanceof VkCommunityPublishingError);
-        assert.equal(error.code, 'VK_RESULT_EVIDENCE_INVALID');
-        return true;
-      },
-    );
-    assert.equal(resultWrites, 0);
-  }
+      await assert.rejects(
+        () => publisher.publishAndPersist(PUBLICATION_ID, null),
+        (error: unknown) => {
+          assert.ok(error instanceof VkCommunityPublishingError);
+          assert.equal(error.code, 'VK_RESULT_EVIDENCE_INVALID');
+          return true;
+        },
+      );
+      assert.equal(resultWrites, 0);
+    }
   },
 );
 
