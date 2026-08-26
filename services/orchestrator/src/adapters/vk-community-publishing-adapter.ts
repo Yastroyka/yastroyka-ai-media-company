@@ -61,7 +61,7 @@ export interface VkCommunityWallPostRequest {
   readonly ownerId: number;
   readonly fromGroup: true;
   readonly message: string;
-  readonly randomId: number;
+  readonly idempotencyKey: string;
 }
 
 export interface VkCommunityPublishTransportResult {
@@ -86,7 +86,7 @@ export interface VkCommunityPublishingResult {
   readonly platform: 'VK_COMMUNITY';
   readonly ownerId: number;
   readonly postId: number;
-  readonly randomId: number;
+  readonly idempotencyKey: string;
   readonly publishedAt: string;
 }
 
@@ -187,10 +187,8 @@ function parseSecretReference(value: unknown): VkCommunitySecretReference {
   return { provider, key };
 }
 
-function deterministicRandomId(publicationId: string): number {
-  const digest = createHash('sha256').update(publicationId, 'utf8').digest();
-  const value = digest.readUInt32BE(0) & 0x7fffffff;
-  return value === 0 ? 1 : value;
+function deterministicIdempotencyKey(publicationId: string): string {
+  return createHash('sha256').update(publicationId, 'utf8').digest('hex');
 }
 
 function parseExactTimestamp(value: string): number | null {
@@ -272,7 +270,7 @@ export class VkCommunityPublishingAdapter {
       ownerId: -this.#communityId,
       fromGroup: true as const,
       message: parseMessage(record.payload),
-      randomId: deterministicRandomId(publicationId),
+      idempotencyKey: deterministicIdempotencyKey(publicationId),
     });
   }
 
@@ -305,7 +303,7 @@ export class VkCommunityPublishingAdapter {
               ownerId: preview.ownerId,
               fromGroup: true,
               message: preview.message,
-              randomId: preview.randomId,
+              idempotencyKey: preview.idempotencyKey,
             },
             secret,
           );
@@ -331,7 +329,7 @@ export class VkCommunityPublishingAdapter {
           platform: 'VK_COMMUNITY' as const,
           ownerId: transportResult.ownerId,
           postId: transportResult.postId,
-          randomId: preview.randomId,
+          idempotencyKey: preview.idempotencyKey,
           publishedAt: publishedAt.toISOString(),
         });
       });
