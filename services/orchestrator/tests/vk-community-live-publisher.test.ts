@@ -60,8 +60,9 @@ test('successful VK write is followed by exact canonical result persistence', as
   assert.deepEqual(result, EXTERNAL_RESULT);
 });
 
-
-test('execution evidence for another publication or VK destination is rejected before persistence', async () => {
+test(
+  'execution evidence for another publication or VK destination is rejected before persistence',
+  async () => {
   for (const external of [
     { ...EXTERNAL_RESULT, publicationId: OTHER_PUBLICATION_ID },
     { ...EXTERNAL_RESULT, ownerId: -999999 },
@@ -92,7 +93,8 @@ test('execution evidence for another publication or VK destination is rejected b
     );
     assert.equal(resultWrites, 0);
   }
-});
+  },
+);
 
 test('transport or identity failure never writes a canonical success result', async () => {
   let resultWrites = 0;
@@ -158,6 +160,7 @@ test('canonical persistence cannot substitute different VK evidence', async () =
     persistedResult({ publishedAt: '2026-08-26T20:31:00.000Z' }),
   ]) {
     const publisher = new VkCommunityLivePublisher({
+      communityId: COMMUNITY_ID,
       execution: {
         async publish() {
           return EXTERNAL_RESULT;
