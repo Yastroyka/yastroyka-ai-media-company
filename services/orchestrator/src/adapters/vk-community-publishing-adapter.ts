@@ -9,7 +9,6 @@ export type VkCommunityPublishingErrorCode =
   | 'VK_PUBLICATION_INVALID'
   | 'VK_SECRET_REFERENCE_INVALID'
   | 'VK_SECRET_ACCESS_FAILED'
-  | 'VK_SECRET_CONSUMER_REUSED'
   | 'VK_TRANSPORT_FAILED'
   | 'VK_TRANSPORT_EVIDENCE_INVALID';
 
@@ -283,6 +282,57 @@ export class VkCommunityPublishingAdapter {
     }
   }
 
+  async #executeTransport(
+    preview: VkCommunityPublishingPreview,
+    secret: string,
+  ): Promise<VkCommunityPublishingResult> {
+    requireAccessToken(secret);
+
+    let transportResult: VkCommunityPublishTransportResult;
+    try {
+      transportResult = await this.#transport.publishWallPost(
+        {
+          ownerId: preview.ownerId,
+          fromGroup: true,
+          message: preview.message,
+          idempotencyKey: preview.idempotencyKey,
+        },
+        secret,
+      );
+    } catch {
+      fail('VK_TRANSPORT_FAILED');
+    }
+
+    try {
+      if (
+        transportResult.ownerId !== preview.ownerId ||
+        !Number.isSafeInteger(transportResult.postId) ||
+        transportResult.postId < 1
+      ) {
+        fail('VK_TRANSPORT_EVIDENCE_INVALID');
+      }
+
+      const publishedAt = this.#clock();
+      if (Number.isNaN(publishedAt.getTime())) {
+        fail('VK_TRANSPORT_EVIDENCE_INVALID');
+      }
+
+      return Object.freeze({
+        publicationId: preview.publicationId,
+        platform: 'VK_COMMUNITY' as const,
+        ownerId: transportResult.ownerId,
+        postId: transportResult.postId,
+        idempotencyKey: preview.idempotencyKey,
+        publishedAt: publishedAt.toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof VkCommunityPublishingError) {
+        throw error;
+      }
+      fail('VK_TRANSPORT_EVIDENCE_INVALID');
+    }
+  }
+
   async preview(publicationId: string): Promise<VkCommunityPublishingPreview> {
     return this.#buildPreview(publicationId);
   }
@@ -308,65 +358,34 @@ export class VkCommunityPublishingAdapter {
     }
 
     const preview = await this.#buildPreview(publicationId);
-    let secretConsumed = false;
+    let executionPromise: Promise<VkCommunityPublishingResult> | null = null;
+    let secretWindowOpen = true;
 
     try {
-      return await this.#secretProvider.withSecret(this.#secretReference, async (secret) => {
-        if (secretConsumed) {
-          fail('VK_SECRET_CONSUMER_REUSED');
+      await this.#secretProvider.withSecret(this.#secretReference, (secret) => {
+        if (!secretWindowOpen) {
+          fail('VK_SECRET_ACCESS_FAILED');
         }
-        secretConsumed = true;
-        requireAccessToken(secret);
-
-        let transportResult: VkCommunityPublishTransportResult;
-        try {
-          transportResult = await this.#transport.publishWallPost(
-            {
-              ownerId: preview.ownerId,
-              fromGroup: true,
-              message: preview.message,
-              idempotencyKey: preview.idempotencyKey,
-            },
-            secret,
-          );
-        } catch {
-          fail('VK_TRANSPORT_FAILED');
+        if (executionPromise === null) {
+          executionPromise = this.#executeTransport(preview, secret);
         }
-
-        try {
-          if (
-            transportResult.ownerId !== preview.ownerId ||
-            !Number.isSafeInteger(transportResult.postId) ||
-            transportResult.postId < 1
-          ) {
-            fail('VK_TRANSPORT_EVIDENCE_INVALID');
-          }
-
-          const publishedAt = this.#clock();
-          if (Number.isNaN(publishedAt.getTime())) {
-            fail('VK_TRANSPORT_EVIDENCE_INVALID');
-          }
-
-          return Object.freeze({
-            publicationId: preview.publicationId,
-            platform: 'VK_COMMUNITY' as const,
-            ownerId: transportResult.ownerId,
-            postId: transportResult.postId,
-            idempotencyKey: preview.idempotencyKey,
-            publishedAt: publishedAt.toISOString(),
-          });
-        } catch (error) {
-          if (error instanceof VkCommunityPublishingError) {
-            throw error;
-          }
-          fail('VK_TRANSPORT_EVIDENCE_INVALID');
-        }
+        return executionPromise;
       });
     } catch (error) {
-      if (error instanceof VkCommunityPublishingError) {
-        throw error;
+      secretWindowOpen = false;
+      if (executionPromise === null) {
+        if (error instanceof VkCommunityPublishingError) {
+          throw error;
+        }
+        fail('VK_SECRET_ACCESS_FAILED');
       }
+    }
+
+    secretWindowOpen = false;
+    const execution = executionPromise;
+    if (execution === null) {
       fail('VK_SECRET_ACCESS_FAILED');
     }
+    return await execution;
   }
 }
