@@ -3,7 +3,11 @@ import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
 import { HmacPublishingIdentityBinding } from '../src/adapters/hmac-publishing-identity-binding.ts';
-import { VkCommunityPublishingError } from '../src/adapters/vk-community-publishing-adapter.ts';
+import {
+  VkCommunityPublishingError,
+  type VkCommunityPublishingPreview,
+  type VkCommunityPublishingResult,
+} from '../src/adapters/vk-community-publishing-adapter.ts';
 import {
   VkCommunityRuntimeController,
   VkCommunityRuntimeGateError,
@@ -108,8 +112,8 @@ function createSecretProvider(
 
 function createController(options: {
   readonly secretAccesses?: string[];
-  readonly preview?: typeof PREVIEW;
-  readonly publishResult?: typeof RESULT;
+  readonly preview?: VkCommunityPublishingPreview;
+  readonly publishResult?: VkCommunityPublishingResult;
   readonly publishError?: Error;
   readonly onIdentity?: (identity: unknown) => void;
 }) {
