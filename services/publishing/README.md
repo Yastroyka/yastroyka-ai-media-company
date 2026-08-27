@@ -29,9 +29,36 @@ The repository now contains:
 - `VkCommunityHttpTransport` pinned to `https://api.vk.com/method/wall.post` and VK API `5.199`;
 - `VkCommunityLivePublisher` for external execution followed by exact canonical result persistence;
 - `PostgresVkCommunityResultStore` for idempotent `AUTO -> PUBLISHED` result persistence;
-- `VkCommunityRuntimeController` for read-only preview/approval packets plus verification of a separate short-lived owner execution grant bound to the exact preview fingerprint before service identity issuance.
+- `VkCommunityRuntimeController` for read-only preview/approval packets plus verification of a separate short-lived owner execution grant bound to the exact preview fingerprint before service identity issuance;
+- `vk-community-owner-grant` as the single canonical owner-grant assertion/signing/verifying contract shared by the offline signer and runtime verifier;
+- `preflightVkCommunityProductionActivation` for side-effect-free validation of production destination/public-key/secret-reference metadata before any secret value is read.
 
 The runtime controller intentionally contains only the owner's Ed25519 public verification key and therefore cannot cryptographically mint an owner grant. The private signing key must remain in a trusted owner-side signing operation outside the ordinary publishing runtime.
+
+
+## Production activation preflight
+
+Production activation must begin with `preflightVkCommunityProductionActivation(...)`. The preflight accepts only non-secret metadata:
+
+- exact positive VK Community ID;
+- owner Ed25519 public verification key;
+- VK credential Secret Provider reference;
+- publishing-identity Secret Provider reference.
+
+The preflight never receives a Secret Provider instance, never reads environment secret values, never performs network I/O, and never publishes. It returns either:
+
+- `BLOCKED` with explicit reasons such as missing/invalid community ID, public key, or secret reference; or
+- `READY` with sanitized metadata only: community ID, derived negative owner ID, owner public-key fingerprint, and the two opaque secret references.
+
+A production destination must not be guessed from search results or a display name. The exact VK Community ID must be independently confirmed before it is bound to deployment configuration.
+
+## Owner-side grant signing
+
+The canonical owner grant payload is created with `createVkCommunityOwnerGrantAssertion(...)` and serialized by `serializeVkCommunityOwnerGrantAssertion(...)`.
+
+`signVkCommunityOwnerGrant(...)` is intended only for the separate owner-side signing boundary. It requires a caller-supplied Ed25519 private `KeyObject`; the helper does not generate, persist, serialize, log, or return the private key. The ordinary publishing runtime must never receive that private key.
+
+The owner signs only after inspecting the exact approval packet and confirming its publication ID, destination and preview fingerprint. The resulting short-lived grant may then be passed to `VkCommunityRuntimeController.execute(...)`, which re-verifies the same canonical payload using only the owner public key.
 
 ## Still owner-gated
 

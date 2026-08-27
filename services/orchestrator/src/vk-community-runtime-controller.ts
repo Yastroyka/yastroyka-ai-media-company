@@ -1,4 +1,4 @@
-import { createHmac, createPublicKey, verify } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 
 import {
   VkCommunityPublishingError,
@@ -8,6 +8,12 @@ import {
   type VkCommunitySecretProviderPort,
   type VkCommunitySecretReference,
 } from './adapters/vk-community-publishing-adapter.ts';
+import {
+  inspectVkCommunityOwnerApprovalPublicKey,
+  verifyVkCommunityOwnerGrant,
+  VkCommunityOwnerGrantError,
+  type VkCommunityOwnerGrantEnvelope,
+} from './vk-community-owner-grant.ts';
 
 export type VkCommunityRuntimeGateErrorCode =
   | 'VK_OWNER_GRANT_FAILED'
@@ -53,23 +59,6 @@ export interface VkCommunityRuntimeControllerOptions {
   readonly identityLifetimeMilliseconds?: number;
 }
 
-interface OwnerGrantAssertion {
-  readonly actor_id: 'human_owner';
-  readonly audience: 'vk-community-execute';
-  readonly grant_id: string;
-  readonly publication_id: string;
-  readonly owner_id: number;
-  readonly preview_fingerprint: string;
-  readonly issued_at: string;
-  readonly expires_at: string;
-}
-
-interface OwnerGrantEnvelope {
-  readonly version: 1;
-  readonly assertion: OwnerGrantAssertion;
-  readonly signature: string;
-}
-
 interface PublishingIdentityAssertion {
   readonly actor_id: 'publishing_service';
   readonly audience: 'vk-community-publish';
@@ -88,19 +77,13 @@ interface PublishingIdentityEnvelope {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/u;
 const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
-const OWNER_SIGNATURE_PATTERN = /^[0-9a-f]{128}$/u;
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
-const PREVIEW_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/u;
 
 const PUBLISHING_IDENTITY_SECRET_KEY_PREFIX = 'publishing/identity/vk-community/';
 const MAX_SECRET_LENGTH = 8_192;
 const MIN_HMAC_SECRET_LENGTH = 32;
-const MAX_PUBLIC_KEY_LENGTH = 4_096;
-const MAX_OWNER_GRANT_LIFETIME_MS = 5 * 60 * 1_000;
-const MAX_FUTURE_SKEW_MS = 30 * 1_000;
 const DEFAULT_IDENTITY_LIFETIME_MS = 2 * 60 * 1_000;
 const MIN_IDENTITY_LIFETIME_MS = 30 * 1_000;
 const MAX_IDENTITY_LIFETIME_MS = 5 * 60 * 1_000;
@@ -159,20 +142,6 @@ function requireIdentityLifetime(value: number): number {
   return value;
 }
 
-function parseExactTimestamp(
-  value: unknown,
-  code: VkCommunityRuntimeGateErrorCode,
-): { readonly value: string; readonly milliseconds: number } {
-  if (typeof value !== 'string') {
-    fail(code);
-  }
-  const milliseconds = Date.parse(value);
-  if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== value) {
-    fail(code);
-  }
-  return { value, milliseconds };
-}
-
 function parseSecretReference(
   value: unknown,
   requiredPrefix: string,
@@ -208,96 +177,6 @@ function requireHmacSecret(secret: string, code: VkCommunityRuntimeGateErrorCode
   return secret;
 }
 
-function parseOwnerGrant(
-  value: unknown,
-  publicationId: string,
-  ownerId: number,
-  previewFingerprint: string,
-  nowMilliseconds: number,
-): OwnerGrantEnvelope {
-  const code = 'VK_OWNER_GRANT_FAILED' as const;
-  const envelope = expectPlainObject(value, code);
-  requireExactKeys(envelope, ['version', 'assertion', 'signature'], code);
-  if (envelope.version !== 1 || typeof envelope.signature !== 'string') {
-    fail(code);
-  }
-
-  const assertion = expectPlainObject(envelope.assertion, code);
-  requireExactKeys(
-    assertion,
-    [
-      'actor_id',
-      'audience',
-      'grant_id',
-      'publication_id',
-      'owner_id',
-      'preview_fingerprint',
-      'issued_at',
-      'expires_at',
-    ],
-    code,
-  );
-
-  const grantId = assertion.grant_id;
-  const grantPublicationId = assertion.publication_id;
-  const grantOwnerId = assertion.owner_id;
-  const grantPreviewFingerprint = assertion.preview_fingerprint;
-  const issuedAt = parseExactTimestamp(assertion.issued_at, code);
-  const expiresAt = parseExactTimestamp(assertion.expires_at, code);
-
-  if (
-    assertion.actor_id !== 'human_owner' ||
-    assertion.audience !== 'vk-community-execute' ||
-    typeof grantId !== 'string' ||
-    !SAFE_ID_PATTERN.test(grantId) ||
-    typeof grantPublicationId !== 'string' ||
-    !UUID_PATTERN.test(grantPublicationId) ||
-    grantPublicationId !== publicationId ||
-    typeof grantOwnerId !== 'number' ||
-    !Number.isSafeInteger(grantOwnerId) ||
-    grantOwnerId !== ownerId ||
-    typeof grantPreviewFingerprint !== 'string' ||
-    !PREVIEW_FINGERPRINT_PATTERN.test(grantPreviewFingerprint) ||
-    grantPreviewFingerprint !== previewFingerprint ||
-    issuedAt.milliseconds >= expiresAt.milliseconds ||
-    expiresAt.milliseconds - issuedAt.milliseconds > MAX_OWNER_GRANT_LIFETIME_MS ||
-    issuedAt.milliseconds > nowMilliseconds + MAX_FUTURE_SKEW_MS ||
-    expiresAt.milliseconds <= nowMilliseconds ||
-    !OWNER_SIGNATURE_PATTERN.test(envelope.signature)
-  ) {
-    fail(code);
-  }
-
-  return Object.freeze({
-    version: 1 as const,
-    assertion: Object.freeze({
-      actor_id: 'human_owner' as const,
-      audience: 'vk-community-execute' as const,
-      grant_id: grantId,
-      publication_id: grantPublicationId,
-      owner_id: grantOwnerId,
-      preview_fingerprint: grantPreviewFingerprint,
-      issued_at: issuedAt.value,
-      expires_at: expiresAt.value,
-    }),
-    signature: envelope.signature,
-  });
-}
-
-function ownerGrantSigningPayload(assertion: OwnerGrantAssertion): string {
-  return JSON.stringify({
-    version: 1,
-    actor_id: assertion.actor_id,
-    audience: assertion.audience,
-    grant_id: assertion.grant_id,
-    publication_id: assertion.publication_id,
-    owner_id: assertion.owner_id,
-    preview_fingerprint: assertion.preview_fingerprint,
-    issued_at: assertion.issued_at,
-    expires_at: assertion.expires_at,
-  });
-}
-
 function publishingIdentitySigningPayload(assertion: PublishingIdentityAssertion): string {
   return JSON.stringify({
     version: 1,
@@ -312,59 +191,8 @@ function publishingIdentitySigningPayload(assertion: PublishingIdentityAssertion
   });
 }
 
-function parseOwnerApprovalPublicKey(value: unknown): ReturnType<typeof createPublicKey> {
-  const code = 'VK_OWNER_GRANT_FAILED' as const;
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > MAX_PUBLIC_KEY_LENGTH ||
-    value.includes('\u0000')
-  ) {
-    fail(code);
-  }
-
-  try {
-    const key = createPublicKey(value);
-    if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
-      fail(code);
-    }
-    return key;
-  } catch (error) {
-    if (error instanceof VkCommunityRuntimeGateError) {
-      throw error;
-    }
-    fail(code);
-  }
-}
-
-function verifyOwnerGrantSignature(
-  envelope: OwnerGrantEnvelope,
-  publicKey: ReturnType<typeof createPublicKey>,
-): void {
-  const code = 'VK_OWNER_GRANT_FAILED' as const;
-  const supplied = Buffer.from(envelope.signature, 'hex');
-  try {
-    if (
-      supplied.length !== 64 ||
-      !verify(
-        null,
-        Buffer.from(ownerGrantSigningPayload(envelope.assertion), 'utf8'),
-        publicKey,
-        supplied,
-      )
-    ) {
-      fail(code);
-    }
-  } catch (error) {
-    if (error instanceof VkCommunityRuntimeGateError) {
-      throw error;
-    }
-    fail(code);
-  }
-}
-
 function createPublishingIdentityEnvelope(
-  grant: OwnerGrantEnvelope,
+  grant: VkCommunityOwnerGrantEnvelope,
   now: Date,
   identityLifetimeMilliseconds: number,
   secret: string,
@@ -496,7 +324,7 @@ function requireResult(
 
 export class VkCommunityRuntimeController {
   readonly #ownerId: number;
-  readonly #ownerApprovalPublicKey: ReturnType<typeof createPublicKey>;
+  readonly #ownerApprovalPublicKey: string;
   readonly #publishingIdentitySecretReference: VkCommunitySecretReference;
   readonly #secretProvider: VkCommunitySecretProviderPort;
   readonly #previewer: VkCommunityRuntimePreviewPort;
@@ -506,7 +334,16 @@ export class VkCommunityRuntimeController {
 
   constructor(options: VkCommunityRuntimeControllerOptions) {
     this.#ownerId = -requireCommunityId(options.communityId);
-    this.#ownerApprovalPublicKey = parseOwnerApprovalPublicKey(options.ownerApprovalPublicKey);
+    try {
+      this.#ownerApprovalPublicKey = inspectVkCommunityOwnerApprovalPublicKey(
+        options.ownerApprovalPublicKey,
+      ).pem;
+    } catch (error) {
+      if (error instanceof VkCommunityOwnerGrantError) {
+        fail('VK_OWNER_GRANT_FAILED');
+      }
+      fail('VK_OWNER_GRANT_FAILED');
+    }
     this.#publishingIdentitySecretReference = parseSecretReference(
       options.publishingIdentitySecretReference,
       PUBLISHING_IDENTITY_SECRET_KEY_PREFIX,
@@ -553,19 +390,23 @@ export class VkCommunityRuntimeController {
     const approval = await this.prepareApproval(publicationId);
     const { preview, previewFingerprint } = approval;
     const now = this.#clock();
-    const nowMilliseconds = now.getTime();
-    if (!Number.isFinite(nowMilliseconds)) {
+
+    let grant: VkCommunityOwnerGrantEnvelope;
+    try {
+      grant = verifyVkCommunityOwnerGrant({
+        grant: ownerGrantContext,
+        ownerApprovalPublicKey: this.#ownerApprovalPublicKey,
+        publicationId,
+        ownerId: this.#ownerId,
+        previewFingerprint,
+        now,
+      });
+    } catch (error) {
+      if (error instanceof VkCommunityOwnerGrantError) {
+        fail('VK_OWNER_GRANT_FAILED');
+      }
       fail('VK_OWNER_GRANT_FAILED');
     }
-
-    const grant = parseOwnerGrant(
-      ownerGrantContext,
-      publicationId,
-      this.#ownerId,
-      previewFingerprint,
-      nowMilliseconds,
-    );
-    verifyOwnerGrantSignature(grant, this.#ownerApprovalPublicKey);
 
     const identity = await consumeSecretExactlyOnce(
       this.#secretProvider,
