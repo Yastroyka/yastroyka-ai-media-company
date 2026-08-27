@@ -7,9 +7,10 @@ Add the owner-gated runtime boundary that can promote an exact approved VK Commu
 Follow PROJECT_CONSTITUTION, ADR-0005, AGENT_EXECUTION_CONTRACT, TASK-010, and the merged FIRST REAL VK POST transport/result-persistence foundation.
 
 ## SCOPE
-- verify a short-lived HMAC owner execution grant for the exact publication and deployment-owned VK Community destination;
-- issue the narrow short-lived `publishing_service` identity only after the owner grant is verified;
-- expose read-only preview without secret access or external write;
+- expose a read-only approval packet containing the exact canonical preview plus a deterministic preview fingerprint, without secret access or external write;
+- verify a short-lived HMAC owner execution grant for the exact publication, deployment-owned VK Community destination, and exact preview fingerprint;
+- issue the narrow short-lived `publishing_service` identity only after the owner grant is verified, carrying the same preview fingerprint;
+- enforce the preview fingerprint again inside the guarded publishing adapter before VK token access or external write;
 - validate live result evidence against the exact preview before returning success;
 - keep all secret material transient behind the Secret Provider boundary;
 - document the operational promotion sequence.
@@ -26,9 +27,10 @@ Follow PROJECT_CONSTITUTION, ADR-0005, AGENT_EXECUTION_CONTRACT, TASK-010, and t
 R3. Publishing/credential-adjacent runtime boundary.
 
 ## ACCEPTANCE
-- preview performs no secret access and no external write;
-- invalid, expired, wrong-publication, or wrong-destination owner grant fails closed before live publish;
-- a valid owner grant produces a compatible short-lived `publishing_service` identity bound to the exact publication and VK destination;
+- preview/approval-packet generation performs no secret access and no external write;
+- invalid, expired, wrong-publication, wrong-destination, or wrong-preview-fingerprint owner grant fails closed before live publish;
+- a valid owner grant produces a compatible short-lived `publishing_service` identity bound to the exact publication, VK destination, and approved preview fingerprint;
+- a canonical message change after owner approval is blocked before VK credential access and before external transport;
 - raw secret/provider errors are sanitized;
 - live result evidence must match exact publication, destination, platform, and idempotency key;
 - no production secret or real network call is used in tests.
