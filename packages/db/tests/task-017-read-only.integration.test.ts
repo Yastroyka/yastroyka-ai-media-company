@@ -7,8 +7,10 @@ test('TASK-017 read-only database connection allows reads and blocks writes', as
   const database = createReadOnlyDatabaseConnection();
 
   try {
-    const [rows] = await database.query('SHOW default_transaction_read_only;');
-    assert.deepEqual(rows[0], { default_transaction_read_only: 'on' });
+    const [rows] = await database.query(
+      "SELECT current_setting('default_transaction_read_only') AS read_only;",
+    );
+    assert.deepEqual(rows[0], { read_only: 'on' });
 
     await assert.rejects(
       database.query('CREATE TABLE task_017_read_only_probe (id integer);'),
