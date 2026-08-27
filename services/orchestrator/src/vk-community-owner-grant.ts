@@ -174,12 +174,22 @@ function parseOwnerPublicKey(value: unknown): { readonly key: KeyObject; readonl
     fail();
   }
 
+  const normalized = value.trim();
+  if (
+    !normalized.startsWith('-----BEGIN PUBLIC KEY-----\n') ||
+    !normalized.endsWith('\n-----END PUBLIC KEY-----') ||
+    normalized.includes('PRIVATE KEY')
+  ) {
+    fail();
+  }
+
   try {
-    const key = createPublicKey(value);
+    const key = createPublicKey(normalized);
     if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
       fail();
     }
-    return Object.freeze({ key, pem: value });
+    const pem = key.export({ type: 'spki', format: 'pem' }).toString();
+    return Object.freeze({ key, pem });
   } catch (error) {
     if (error instanceof VkCommunityOwnerGrantError) {
       throw error;
