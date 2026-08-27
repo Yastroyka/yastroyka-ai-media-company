@@ -8,7 +8,7 @@ Follow PROJECT_CONSTITUTION, ADR-0005, AGENT_EXECUTION_CONTRACT, TASK-010, and t
 
 ## SCOPE
 - expose a read-only approval packet containing the exact canonical preview plus a deterministic preview fingerprint, without secret access or external write;
-- verify a short-lived HMAC owner execution grant for the exact publication, deployment-owned VK Community destination, and exact preview fingerprint;
+- verify a short-lived Ed25519 owner execution grant for the exact publication, deployment-owned VK Community destination, and exact preview fingerprint using only the owner's public verification key in the publishing runtime;
 - issue the narrow short-lived `publishing_service` identity only after the owner grant is verified, carrying the same preview fingerprint;
 - enforce the preview fingerprint again inside the guarded publishing adapter before VK token access or external write;
 - validate live result evidence against the exact preview before returning success;
@@ -17,7 +17,7 @@ Follow PROJECT_CONSTITUTION, ADR-0005, AGENT_EXECUTION_CONTRACT, TASK-010, and t
 
 ## OUT OF SCOPE
 - no production VK token or HMAC key activation;
-- no owner-grant signing secret in repository, CI, prompts, logs, screenshots, fixtures, or docs;
+- no owner Ed25519 private signing key in the publishing runtime, repository, CI, prompts, logs, screenshots, fixtures, or docs;
 - no production runtime deployment;
 - no real VK network request;
 - no first external VK post;
@@ -31,6 +31,7 @@ R3. Publishing/credential-adjacent runtime boundary.
 - invalid, expired, wrong-publication, wrong-destination, or wrong-preview-fingerprint owner grant fails closed before live publish;
 - a valid owner grant produces a compatible short-lived `publishing_service` identity bound to the exact publication, VK destination, and approved preview fingerprint;
 - a canonical message change after owner approval is blocked before VK credential access and before external transport;
+- the publishing runtime can verify owner grants but cannot cryptographically mint them because it has no owner private key;
 - raw secret/provider errors are sanitized;
 - live result evidence must match exact publication, destination, platform, and idempotency key;
 - no production secret or real network call is used in tests.
