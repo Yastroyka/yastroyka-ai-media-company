@@ -1,9 +1,21 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { VkCommunityPublishingAdapter } from '../src/adapters/vk-community-publishing-adapter.ts';
+import {
+  VkCommunityPublishingAdapter,
+  computeVkCommunityPreviewFingerprint,
+} from '../src/adapters/vk-community-publishing-adapter.ts';
 
 const PUBLICATION_ID = '33333333-3333-4333-8333-333333333333';
+const PREVIEW_FINGERPRINT = computeVkCommunityPreviewFingerprint({
+  publicationId: PUBLICATION_ID,
+  platform: 'VK_COMMUNITY',
+  ownerId: -123456,
+  fromGroup: true,
+  message: 'Single external write only',
+  idempotencyKey: createHash('sha256').update(PUBLICATION_ID, 'utf8').digest('hex'),
+});
 
 test('a buggy secret provider cannot cause a second external publish', async () => {
   let transportCalls = 0;
@@ -35,6 +47,7 @@ test('a buggy secret provider cannot cause a second external publish', async () 
           bindingId: 'session:publishing:single-use',
           publicationId: PUBLICATION_ID,
           ownerId: -123456,
+          previewFingerprint: PREVIEW_FINGERPRINT,
           issuedAt: '2026-08-26T14:59:00.000Z',
           expiresAt: '2026-08-26T15:01:00.000Z',
         };
