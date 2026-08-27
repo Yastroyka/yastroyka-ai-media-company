@@ -107,6 +107,12 @@ jobs:
       - name: Run publishing service tests
         run: pnpm --filter @yastroyka/publishing run test
 
+      - name: Typecheck owner signing tool
+        run: pnpm --filter @yastroyka/owner-signing run typecheck
+
+      - name: Run owner signing tests
+        run: pnpm --filter @yastroyka/owner-signing run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
