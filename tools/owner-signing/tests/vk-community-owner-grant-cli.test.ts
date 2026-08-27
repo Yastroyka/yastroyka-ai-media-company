@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -47,7 +47,7 @@ function approvalPacket(ownerId = -123456): Record<string, unknown> {
     ownerId,
     fromGroup: true,
     message: 'Точный текст первого реального поста Ястройки',
-    idempotencyKey: 'a'.repeat(64),
+    idempotencyKey: createHash('sha256').update(PUBLICATION_ID, 'utf8').digest('hex'),
   };
   return {
     status: 'READY',
