@@ -119,3 +119,29 @@ The manifest is non-secret configuration only and may contain these top-level fi
 Do not put a VK access token, publishing-identity HMAC value, owner private signing key, cookie, session material, authorization header, or any other secret value in this manifest. Unknown top-level fields are rejected rather than ignored.
 
 Exit codes are deterministic: `0` means READY, `2` means BLOCKED, `64` means usage error, and `65` means invalid manifest. READY/BLOCKED output is sanitized JSON from the canonical production preflight. The command has no Secret Provider dependency, no database access, no network transport, no grant signing, and no publish path.
+
+
+## Approval packet operator
+
+TASK-017 establishes `services/publishing` as the composition boundary between the provider-neutral orchestrator and PostgreSQL infrastructure.
+
+The operator command is:
+
+```bash
+pnpm --filter @yastroyka/publishing vk:approval-packet <publication-id> ./vk-production.json
+```
+
+The command first parses the same non-secret production manifest used by TASK-015 and requires the canonical production preflight to be `READY`. PostgreSQL is not opened when the manifest is invalid or blocked.
+
+When preflight is ready, the command opens a dedicated PostgreSQL connection whose sessions start with `default_transaction_read_only=on`, then reads exactly one publication through `PostgresPlatformWorkspaceStore.findById(publicationId)`. TASK-017 integration tests verify that this connection accepts reads and rejects a write statement.
+
+The operator emits either:
+
+- `READY` with the exact canonical approval packet from TASK-016; or
+- `BLOCKED` with a safe production-preflight reason or canonical publication reason.
+
+Database/config/internal errors are collapsed to one generic operational error and are never reflected verbatim. The database lease is closed before READY/BLOCKED output is returned.
+
+This command has no VK transport, no Secret Provider access for VK/HMAC material, no owner private signing key, no owner-grant signing, no publication mutation, and no `wall.post` path.
+
+Exit codes are `0` for READY, `2` for BLOCKED, `64` for usage error, `65` for invalid operator input, and `70` for a sanitized operational failure.
