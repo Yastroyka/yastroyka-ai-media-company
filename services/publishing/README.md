@@ -8,11 +8,11 @@ The first real VK Community post must not be enabled until all of the following 
 
 1. PostgreSQL publication state is loaded by `publicationId` and is exactly `VK_COMMUNITY` + `AUTO`.
 2. A read-only approval packet is generated from the canonical publication. It contains the exact VK preview and a deterministic fingerprint of publication ID, platform, destination, message, and idempotency key.
-3. A short-lived owner execution grant is verified for that exact publication, deployment-owned VK Community destination, and exact preview fingerprint.
+3. A short-lived Ed25519 owner execution grant is verified for that exact publication, deployment-owned VK Community destination, and exact preview fingerprint. The publishing runtime has only the owner public verification key.
 4. Only after that owner grant is verified may the runtime issue the narrow short-lived `publishing_service` identity for the `vk-community-publish` audience, carrying the same preview fingerprint.
 5. The guarded publishing adapter recomputes the canonical preview and rejects a preview-fingerprint mismatch before VK credential access or external transport.
 6. The VK credential is referenced only through the Secret Provider boundary under `publishing/vk-community/*`.
-7. Owner-approval and publishing-identity verification material is also referenced only through the Secret Provider boundary.
+7. The owner private Ed25519 signing key stays outside the publishing runtime entirely. The publishing runtime receives only the public verification key; publishing-identity HMAC material remains behind the Secret Provider boundary.
 8. Secret material is transient: it is never persisted, logged, returned, copied into evidence, or attached to an error.
 9. The concrete VK HTTP transport is pinned to the reviewed VK API contract and maps the internal deterministic idempotency key to VK `guid`.
 10. The destination community is deployment-owned configuration, not a per-request caller-selected destination.
@@ -31,7 +31,7 @@ The repository now contains:
 - `PostgresVkCommunityResultStore` for idempotent `AUTO -> PUBLISHED` result persistence;
 - `VkCommunityRuntimeController` for read-only preview/approval packets plus verification of a separate short-lived owner execution grant bound to the exact preview fingerprint before service identity issuance.
 
-The runtime controller intentionally does not contain an owner-grant signing secret and cannot self-approve. An owner grant must come from a trusted owner-side signing operation outside the ordinary publishing runtime.
+The runtime controller intentionally contains only the owner's Ed25519 public verification key and therefore cannot cryptographically mint an owner grant. The private signing key must remain in a trusted owner-side signing operation outside the ordinary publishing runtime.
 
 ## Still owner-gated
 
@@ -39,7 +39,7 @@ The repository does not contain production VK token values, production HMAC key 
 
 Before the first real post, the operator must still:
 
-1. provision the production owner-approval HMAC secret outside the repository and AI-visible channels;
+1. provision the production owner Ed25519 private signing key in an owner-side signing boundary outside the publishing runtime, repository, and AI-visible channels, and configure only its public verification key in the runtime;
 2. provision the publishing-identity HMAC secret outside the repository and AI-visible channels;
 3. provision the VK access token through the Secret Provider boundary;
 4. bind the deployment to the exact VK Community ID;
@@ -49,4 +49,4 @@ Before the first real post, the operator must still:
 
 ## Evidence rules
 
-Canonical evidence may contain publication ID, platform, destination owner ID, external post ID, deterministic idempotency key, safe result code, and timestamp. It must not contain access tokens, HMAC key material, raw VK responses, raw provider errors, cookies, session material, authorization headers, or inline secret values.
+Canonical evidence may contain publication ID, platform, destination owner ID, preview fingerprint, external post ID, deterministic idempotency key, safe result code, and timestamp. It must not contain access tokens, HMAC key material, owner private signing key material, raw VK responses, raw provider errors, cookies, session material, authorization headers, or inline secret values.
