@@ -105,18 +105,28 @@ function requireAssertionValues(assertion: VkCommunityOwnerGrantAssertion): void
   if (
     assertion.actor_id !== 'human_owner' ||
     assertion.audience !== 'vk-community-execute' ||
+    typeof assertion.grant_id !== 'string' ||
     !SAFE_ID_PATTERN.test(assertion.grant_id) ||
+    typeof assertion.publication_id !== 'string' ||
     !UUID_PATTERN.test(assertion.publication_id) ||
+    typeof assertion.owner_id !== 'number' ||
     !Number.isSafeInteger(assertion.owner_id) ||
     assertion.owner_id >= 0 ||
     assertion.owner_id < -2_147_483_647 ||
+    typeof assertion.preview_fingerprint !== 'string' ||
     !PREVIEW_FINGERPRINT_PATTERN.test(assertion.preview_fingerprint)
   ) {
     fail();
   }
 
-  requireExactTimestamp(assertion.issued_at);
-  requireExactTimestamp(assertion.expires_at);
+  const issuedAt = Date.parse(requireExactTimestamp(assertion.issued_at));
+  const expiresAt = Date.parse(requireExactTimestamp(assertion.expires_at));
+  if (
+    issuedAt >= expiresAt ||
+    expiresAt - issuedAt > MAX_OWNER_GRANT_LIFETIME_MS
+  ) {
+    fail();
+  }
 }
 
 function parseAssertion(value: unknown): VkCommunityOwnerGrantAssertion {
