@@ -102,6 +102,30 @@ export {
 } from './vk-community-runtime-controller.ts';
 
 export {
+  VkCommunityOwnerGrantError,
+  createVkCommunityOwnerGrantAssertion,
+  inspectVkCommunityOwnerApprovalPublicKey,
+  serializeVkCommunityOwnerGrantAssertion,
+  signVkCommunityOwnerGrant,
+  verifyVkCommunityOwnerGrant,
+  type CreateVkCommunityOwnerGrantAssertionInput,
+  type VerifyVkCommunityOwnerGrantInput,
+  type VkCommunityOwnerApprovalPublicKeyMetadata,
+  type VkCommunityOwnerGrantAssertion,
+  type VkCommunityOwnerGrantEnvelope,
+} from './vk-community-owner-grant.ts';
+
+export {
+  preflightVkCommunityProductionActivation,
+  type VkCommunityProductionPreflightBlocked,
+  type VkCommunityProductionPreflightInput,
+  type VkCommunityProductionPreflightReady,
+  type VkCommunityProductionPreflightReason,
+  type VkCommunityProductionPreflightResult,
+  type VkCommunityProductionSecretReference,
+} from './vk-community-production-preflight.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
