@@ -78,6 +78,16 @@ test('owner public-key inspection returns only public metadata and a stable fing
   assert.equal(JSON.stringify(first).includes('PRIVATE KEY'), false);
 });
 
+test('owner public-key boundary rejects Ed25519 private PEM material', () => {
+  const { privateKey } = generateKeyPairSync('ed25519');
+  const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+
+  assert.throws(
+    () => inspectVkCommunityOwnerApprovalPublicKey(privatePem),
+    VkCommunityOwnerGrantError,
+  );
+});
+
 test('owner grant tampering, expiry and wrong verification key fail closed', () => {
   const signer = generateKeyPairSync('ed25519');
   const other = generateKeyPairSync('ed25519');
