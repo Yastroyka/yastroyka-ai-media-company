@@ -10,10 +10,7 @@ import {
   preflightVkCommunityProductionActivation,
   type VkCommunityPublicationStatePort,
 } from '@yastroyka/orchestrator';
-import {
-  PostgresPlatformWorkspaceStore,
-  createReadOnlyDatabaseConnection,
-} from '@yastroyka/db';
+import { PostgresPlatformWorkspaceStore, createReadOnlyDatabaseConnection } from '@yastroyka/db';
 
 export type VkCommunityApprovalPacketOperatorExitCode = 0 | 2 | 64 | 65 | 70;
 
@@ -32,8 +29,7 @@ export interface VkCommunityApprovalPacketOperatorIo {
   readonly writeStderr: (text: string) => void;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const MAX_PATH_LENGTH = 4_096;
 
 function jsonLine(value: unknown): string {
@@ -65,9 +61,7 @@ export async function runVkCommunityApprovalPacketOperator(
   io: VkCommunityApprovalPacketOperatorIo,
 ): Promise<VkCommunityApprovalPacketOperatorExitCode> {
   if (args.length !== 3 || args[0] !== 'approval-packet') {
-    io.writeStderr(
-      'Usage: vk:approval-packet <publication-id> <non-secret-manifest.json>\n',
-    );
+    io.writeStderr('Usage: vk:approval-packet <publication-id> <non-secret-manifest.json>\n');
     return 64;
   }
 
@@ -108,9 +102,7 @@ export async function runVkCommunityApprovalPacketOperator(
   let result:
     | {
         readonly status: 'READY';
-        readonly approvalPacket: Awaited<
-          ReturnType<VkCommunityApprovalPacketReader['prepare']>
-        >;
+        readonly approvalPacket: Awaited<ReturnType<VkCommunityApprovalPacketReader['prepare']>>;
       }
     | {
         readonly status: 'BLOCKED';
