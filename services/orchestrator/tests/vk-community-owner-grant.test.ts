@@ -125,6 +125,37 @@ test('owner grant tampering, expiry and wrong verification key fail closed', () 
   }
 });
 
+
+test('offline signer rejects malformed or overlong assertions before signing', () => {
+  const { privateKey } = generateKeyPairSync('ed25519');
+
+  assert.throws(
+    () =>
+      createVkCommunityOwnerGrantAssertion({
+        grantId: 123 as unknown as string,
+        publicationId: PUBLICATION_ID,
+        ownerId: OWNER_ID,
+        previewFingerprint: PREVIEW_FINGERPRINT,
+        issuedAt: ISSUED_AT,
+        expiresAt: EXPIRES_AT,
+      }),
+    VkCommunityOwnerGrantError,
+  );
+
+  assert.throws(
+    () =>
+      signVkCommunityOwnerGrant(
+        {
+          ...buildAssertion(),
+          issued_at: '2026-08-27T07:00:00.000Z',
+          expires_at: '2026-08-27T07:06:00.001Z',
+        },
+        privateKey,
+      ),
+    VkCommunityOwnerGrantError,
+  );
+});
+
 test('owner signer accepts only an Ed25519 private KeyObject', () => {
   const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 });
   assert.throws(
