@@ -14,7 +14,7 @@ The first real VK Community post must not be enabled until all of the following 
 6. The VK credential is referenced only through the Secret Provider boundary under `publishing/vk-community/*`.
 7. The owner private Ed25519 signing key stays outside the publishing runtime entirely. The publishing runtime receives only the public verification key; publishing-identity HMAC material remains behind the Secret Provider boundary.
 8. Secret material is transient: it is never persisted, logged, returned, copied into evidence, or attached to an error.
-9. The concrete VK HTTP transport is pinned to the reviewed VK API contract and maps the internal deterministic idempotency key to VK `guid`.
+9. The concrete VK HTTP transport is pinned to `https://api.vk.com/method/wall.post` and VK API `5.199`.
 10. The destination community is deployment-owned configuration, not a per-request caller-selected destination.
 11. The transport result is validated before it can be recorded as canonical publication evidence.
 12. Successful external publication is followed by canonical result persistence; retry uses the same deterministic idempotency key so an ambiguous network/result-persistence failure does not intentionally create a second post.
@@ -34,7 +34,6 @@ The repository now contains:
 - `preflightVkCommunityProductionActivation` for side-effect-free validation of production destination/public-key/secret-reference metadata before any secret value is read.
 
 The runtime controller intentionally contains only the owner's Ed25519 public verification key and therefore cannot cryptographically mint an owner grant. The private signing key must remain in a trusted owner-side signing operation outside the ordinary publishing runtime.
-
 
 ## Production activation preflight
 
@@ -77,3 +76,33 @@ Before the first real post, the operator must still:
 ## Evidence rules
 
 Canonical evidence may contain publication ID, platform, destination owner ID, preview fingerprint, external post ID, deterministic idempotency key, safe result code, and timestamp. It must not contain access tokens, HMAC key material, owner private signing key material, raw VK responses, raw provider errors, cookies, session material, authorization headers, or inline secret values.
+
+
+## Operator preflight CLI
+
+TASK-015 adds a deliberately narrow operator command for production metadata validation:
+
+```bash
+pnpm --filter @yastroyka/orchestrator vk:preflight ./vk-production.json
+```
+
+The manifest is non-secret configuration only and may contain these top-level fields:
+
+```json
+{
+  "communityId": 123456,
+  "ownerApprovalPublicKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n",
+  "vkCredentialSecretReference": {
+    "provider": "env",
+    "key": "publishing/vk-community/yastroyka"
+  },
+  "publishingIdentitySecretReference": {
+    "provider": "env",
+    "key": "publishing/identity/vk-community/runtime"
+  }
+}
+```
+
+Do not put a VK access token, publishing-identity HMAC value, owner private signing key, cookie, session material, authorization header, or any other secret value in this manifest. Unknown top-level fields are rejected rather than ignored.
+
+Exit codes are deterministic: `0` means READY, `2` means BLOCKED, `64` means usage error, and `65` means invalid manifest. READY/BLOCKED output is sanitized JSON from the canonical production preflight. The command has no Secret Provider dependency, no database access, no network transport, no grant signing, and no publish path.
