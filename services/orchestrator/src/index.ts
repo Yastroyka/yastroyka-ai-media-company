@@ -102,6 +102,13 @@ export {
 } from './vk-community-runtime-controller.ts';
 
 export {
+  VkCommunityApprovalPacketReader,
+  createVkCommunityApprovalPacketReader,
+  type VkCommunityApprovalPacket,
+  type VkCommunityApprovalPacketReaderOptions,
+} from './vk-community-approval-packet-reader.ts';
+
+export {
   VkCommunityOwnerGrantError,
   createVkCommunityOwnerGrantAssertion,
   inspectVkCommunityOwnerApprovalPublicKey,
@@ -201,15 +208,18 @@ export {
 } from './adapters/vk-community-http-transport.ts';
 
 export {
+  VkCommunityPreviewReader,
   VkCommunityPublishingAdapter,
   VkCommunityPublishingError,
   computeVkCommunityPreviewFingerprint,
+  createVkCommunityPreviewReader,
   type PublishingIdentityBinding,
   type PublishingIdentityBindingPort,
   type VkCommunityPublishTransport,
   type VkCommunityPublishTransportResult,
   type VkCommunityPublicationRecord,
   type VkCommunityPublicationStatePort,
+  type VkCommunityPreviewReaderOptions,
   type VkCommunityPublishingAdapterOptions,
   type VkCommunityPublishingErrorCode,
   type VkCommunityPublishingPreview,
