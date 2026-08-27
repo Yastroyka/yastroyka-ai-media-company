@@ -28,12 +28,7 @@ function readyManifest() {
   };
 }
 
-function ioFor(
-  text: string,
-  stdout: string[],
-  stderr: string[],
-  reads: string[],
-) {
+function ioFor(text: string, stdout: string[], stderr: string[], reads: string[]) {
   return {
     async readTextFile(path: string) {
       reads.push(path);
@@ -69,10 +64,7 @@ test('operator preflight emits sanitized READY metadata only', async () => {
   assert.equal(result.communityId, 123456);
   assert.equal(result.ownerId, -123456);
   assert.match(String(result.ownerPublicKeyFingerprint), /^sha256:[0-9a-f]{64}$/u);
-  assert.doesNotMatch(
-    stdout.join(''),
-    /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|hmac/iu,
-  );
+  assert.doesNotMatch(stdout.join(''), /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|hmac/iu);
 });
 
 test('operator preflight emits BLOCKED and exit code 2 for incomplete metadata', async () => {
@@ -99,71 +91,62 @@ test('operator preflight emits BLOCKED and exit code 2 for incomplete metadata',
   });
 });
 
-test(
-  'operator manifest rejects unknown top-level fields without reflecting secret input',
-  async () => {
-    const rejectedSecret = 'must-never-be-reflected';
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-    const reads: string[] = [];
-    const manifest = {
-      ...readyManifest(),
-      vkAccessToken: rejectedSecret,
-    };
+test('operator manifest rejects unknown top-level fields without reflecting secret input', async () => {
+  const rejectedSecret = 'must-never-be-reflected';
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const reads: string[] = [];
+  const manifest = {
+    ...readyManifest(),
+    vkAccessToken: rejectedSecret,
+  };
 
-    const exitCode = await runVkCommunityOperatorPreflightCli(
-      ['preflight', 'vk-production.json'],
-      ioFor(JSON.stringify(manifest), stdout, stderr, reads),
-    );
+  const exitCode = await runVkCommunityOperatorPreflightCli(
+    ['preflight', 'vk-production.json'],
+    ioFor(JSON.stringify(manifest), stdout, stderr, reads),
+  );
 
-    assert.equal(exitCode, 65);
-    assert.deepEqual(stdout, []);
-    assert.deepEqual(stderr, ['VK production preflight manifest invalid\n']);
-    assert.doesNotMatch(stderr.join(''), new RegExp(rejectedSecret, 'u'));
-  },
-);
+  assert.equal(exitCode, 65);
+  assert.deepEqual(stdout, []);
+  assert.deepEqual(stderr, ['VK production preflight manifest invalid\n']);
+  assert.doesNotMatch(stderr.join(''), new RegExp(rejectedSecret, 'u'));
+});
 
-test(
-  'operator preflight delegates inline secret-reference fields to fail-closed canonical validation',
-  async () => {
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-    const reads: string[] = [];
-    const manifest = {
-      ...readyManifest(),
-      vkCredentialSecretReference: {
-        provider: 'env',
-        key: 'publishing/vk-community/yastroyka',
-        token: 'inline-secret-must-not-be-accepted',
-      },
-    };
+test('operator preflight delegates inline secret-reference fields to fail-closed canonical validation', async () => {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const reads: string[] = [];
+  const manifest = {
+    ...readyManifest(),
+    vkCredentialSecretReference: {
+      provider: 'env',
+      key: 'publishing/vk-community/yastroyka',
+      token: 'inline-secret-must-not-be-accepted',
+    },
+  };
 
-    const exitCode = await runVkCommunityOperatorPreflightCli(
-      ['preflight', 'vk-production.json'],
-      ioFor(JSON.stringify(manifest), stdout, stderr, reads),
-    );
+  const exitCode = await runVkCommunityOperatorPreflightCli(
+    ['preflight', 'vk-production.json'],
+    ioFor(JSON.stringify(manifest), stdout, stderr, reads),
+  );
 
-    assert.equal(exitCode, 2);
-    assert.deepEqual(stderr, []);
-    const result = JSON.parse(stdout[0] ?? '{}') as {
-      readonly status?: string;
-      readonly reasons?: readonly string[];
-    };
-    assert.equal(result.status, 'BLOCKED');
-    assert.deepEqual(result.reasons, ['VK_CREDENTIAL_REFERENCE_INVALID']);
-    assert.doesNotMatch(stdout.join(''), /inline-secret-must-not-be-accepted/u);
-  },
-);
+  assert.equal(exitCode, 2);
+  assert.deepEqual(stderr, []);
+  const result = JSON.parse(stdout[0] ?? '{}') as {
+    readonly status?: string;
+    readonly reasons?: readonly string[];
+  };
+  assert.equal(result.status, 'BLOCKED');
+  assert.deepEqual(result.reasons, ['VK_CREDENTIAL_REFERENCE_INVALID']);
+  assert.doesNotMatch(stdout.join(''), /inline-secret-must-not-be-accepted/u);
+});
 
 test('usage errors do not read a manifest', async () => {
   const stdout: string[] = [];
   const stderr: string[] = [];
   const reads: string[] = [];
 
-  const exitCode = await runVkCommunityOperatorPreflightCli(
-    [],
-    ioFor('{}', stdout, stderr, reads),
-  );
+  const exitCode = await runVkCommunityOperatorPreflightCli([], ioFor('{}', stdout, stderr, reads));
 
   assert.equal(exitCode, 64);
   assert.deepEqual(reads, []);
@@ -172,15 +155,7 @@ test('usage errors do not read a manifest', async () => {
 });
 
 test('manifest parser rejects malformed, oversized, NUL and array inputs', () => {
-  for (const value of [
-    '{',
-    'x'.repeat(65_537),
-    '{"communityId":"\u0000"}',
-    '[]',
-  ]) {
-    assert.throws(
-      () => parseVkCommunityOperatorManifest(value),
-      VkCommunityOperatorManifestError,
-    );
+  for (const value of ['{', 'x'.repeat(65_537), '{"communityId":"\u0000"}', '[]']) {
+    assert.throws(() => parseVkCommunityOperatorManifest(value), VkCommunityOperatorManifestError);
   }
 });
