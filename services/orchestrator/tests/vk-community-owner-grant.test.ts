@@ -125,7 +125,6 @@ test('owner grant tampering, expiry and wrong verification key fail closed', () 
   }
 });
 
-
 test('offline signer rejects malformed or overlong assertions before signing', () => {
   const { privateKey } = generateKeyPairSync('ed25519');
 
