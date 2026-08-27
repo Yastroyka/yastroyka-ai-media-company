@@ -69,7 +69,10 @@ test('operator preflight emits sanitized READY metadata only', async () => {
   assert.equal(result.communityId, 123456);
   assert.equal(result.ownerId, -123456);
   assert.match(String(result.ownerPublicKeyFingerprint), /^sha256:[0-9a-f]{64}$/u);
-  assert.doesNotMatch(stdout.join(''), /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|hmac/iu);
+  assert.doesNotMatch(
+    stdout.join(''),
+    /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|hmac/iu,
+  );
 });
 
 test('operator preflight emits BLOCKED and exit code 2 for incomplete metadata', async () => {
@@ -117,7 +120,9 @@ test('operator manifest rejects unknown top-level fields without reflecting secr
   assert.doesNotMatch(stderr.join(''), new RegExp(rejectedSecret, 'u'));
 });
 
-test('operator preflight delegates inline secret-reference fields to fail-closed canonical validation', async () => {
+test(
+  'operator preflight delegates inline secret-reference fields to fail-closed canonical validation',
+  async () => {
   const stdout: string[] = [];
   const stderr: string[] = [];
   const reads: string[] = [];
@@ -144,7 +149,8 @@ test('operator preflight delegates inline secret-reference fields to fail-closed
   assert.equal(result.status, 'BLOCKED');
   assert.deepEqual(result.reasons, ['VK_CREDENTIAL_REFERENCE_INVALID']);
   assert.doesNotMatch(stdout.join(''), /inline-secret-must-not-be-accepted/u);
-});
+  },
+);
 
 test('usage errors do not read a manifest', async () => {
   const stdout: string[] = [];
@@ -169,6 +175,9 @@ test('manifest parser rejects malformed, oversized, NUL and array inputs', () =>
     '{"communityId":"\u0000"}',
     '[]',
   ]) {
-    assert.throws(() => parseVkCommunityOperatorManifest(value), VkCommunityOperatorManifestError);
+    assert.throws(
+      () => parseVkCommunityOperatorManifest(value),
+      VkCommunityOperatorManifestError,
+    );
   }
 });
