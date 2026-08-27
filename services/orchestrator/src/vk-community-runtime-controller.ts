@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, createPublicKey, verify } from 'node:crypto';
 
 import {
   VkCommunityPublishingError,
@@ -44,7 +44,7 @@ export interface VkCommunityRuntimeApprovalPacket {
 
 export interface VkCommunityRuntimeControllerOptions {
   readonly communityId: number;
-  readonly ownerApprovalSecretReference: unknown;
+  readonly ownerApprovalPublicKey: unknown;
   readonly publishingIdentitySecretReference: unknown;
   readonly secretProvider: VkCommunitySecretProviderPort;
   readonly previewer: VkCommunityRuntimePreviewPort;
@@ -91,14 +91,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/u;
 const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
-const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/u;
+const OWNER_SIGNATURE_PATTERN = /^[0-9a-f]{128}$/u;
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
 const PREVIEW_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/u;
 
-const OWNER_APPROVAL_SECRET_KEY_PREFIX = 'publishing/owner-approval/vk-community/';
 const PUBLISHING_IDENTITY_SECRET_KEY_PREFIX = 'publishing/identity/vk-community/';
 const MAX_SECRET_LENGTH = 8_192;
 const MIN_HMAC_SECRET_LENGTH = 32;
+const MAX_PUBLIC_KEY_LENGTH = 4_096;
 const MAX_OWNER_GRANT_LIFETIME_MS = 5 * 60 * 1_000;
 const MAX_FUTURE_SKEW_MS = 30 * 1_000;
 const DEFAULT_IDENTITY_LIFETIME_MS = 2 * 60 * 1_000;
@@ -263,7 +263,7 @@ function parseOwnerGrant(
     expiresAt.milliseconds - issuedAt.milliseconds > MAX_OWNER_GRANT_LIFETIME_MS ||
     issuedAt.milliseconds > nowMilliseconds + MAX_FUTURE_SKEW_MS ||
     expiresAt.milliseconds <= nowMilliseconds ||
-    !SIGNATURE_PATTERN.test(envelope.signature)
+    !OWNER_SIGNATURE_PATTERN.test(envelope.signature)
   ) {
     fail(code);
   }
@@ -312,13 +312,53 @@ function publishingIdentitySigningPayload(assertion: PublishingIdentityAssertion
   });
 }
 
-function verifyOwnerGrantSignature(envelope: OwnerGrantEnvelope, secret: string): void {
+function parseOwnerApprovalPublicKey(value: unknown): ReturnType<typeof createPublicKey> {
   const code = 'VK_OWNER_GRANT_FAILED' as const;
-  const expected = createHmac('sha256', requireHmacSecret(secret, code))
-    .update(ownerGrantSigningPayload(envelope.assertion), 'utf8')
-    .digest();
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_PUBLIC_KEY_LENGTH ||
+    value.includes('\u0000')
+  ) {
+    fail(code);
+  }
+
+  try {
+    const key = createPublicKey(value);
+    if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
+      fail(code);
+    }
+    return key;
+  } catch (error) {
+    if (error instanceof VkCommunityRuntimeGateError) {
+      throw error;
+    }
+    fail(code);
+  }
+}
+
+function verifyOwnerGrantSignature(
+  envelope: OwnerGrantEnvelope,
+  publicKey: ReturnType<typeof createPublicKey>,
+): void {
+  const code = 'VK_OWNER_GRANT_FAILED' as const;
   const supplied = Buffer.from(envelope.signature, 'hex');
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+  try {
+    if (
+      supplied.length !== 64 ||
+      !verify(
+        null,
+        Buffer.from(ownerGrantSigningPayload(envelope.assertion), 'utf8'),
+        publicKey,
+        supplied,
+      )
+    ) {
+      fail(code);
+    }
+  } catch (error) {
+    if (error instanceof VkCommunityRuntimeGateError) {
+      throw error;
+    }
     fail(code);
   }
 }
@@ -456,7 +496,7 @@ function requireResult(
 
 export class VkCommunityRuntimeController {
   readonly #ownerId: number;
-  readonly #ownerApprovalSecretReference: VkCommunitySecretReference;
+  readonly #ownerApprovalPublicKey: ReturnType<typeof createPublicKey>;
   readonly #publishingIdentitySecretReference: VkCommunitySecretReference;
   readonly #secretProvider: VkCommunitySecretProviderPort;
   readonly #previewer: VkCommunityRuntimePreviewPort;
@@ -466,11 +506,7 @@ export class VkCommunityRuntimeController {
 
   constructor(options: VkCommunityRuntimeControllerOptions) {
     this.#ownerId = -requireCommunityId(options.communityId);
-    this.#ownerApprovalSecretReference = parseSecretReference(
-      options.ownerApprovalSecretReference,
-      OWNER_APPROVAL_SECRET_KEY_PREFIX,
-      'VK_OWNER_GRANT_FAILED',
-    );
+    this.#ownerApprovalPublicKey = parseOwnerApprovalPublicKey(options.ownerApprovalPublicKey);
     this.#publishingIdentitySecretReference = parseSecretReference(
       options.publishingIdentitySecretReference,
       PUBLISHING_IDENTITY_SECRET_KEY_PREFIX,
@@ -529,12 +565,7 @@ export class VkCommunityRuntimeController {
       previewFingerprint,
       nowMilliseconds,
     );
-    await consumeSecretExactlyOnce(
-      this.#secretProvider,
-      this.#ownerApprovalSecretReference,
-      'VK_OWNER_GRANT_FAILED',
-      (secret) => verifyOwnerGrantSignature(grant, secret),
-    );
+    verifyOwnerGrantSignature(grant, this.#ownerApprovalPublicKey);
 
     const identity = await consumeSecretExactlyOnce(
       this.#secretProvider,
