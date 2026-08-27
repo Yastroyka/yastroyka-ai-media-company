@@ -10,6 +10,7 @@ import {
 const PUBLICATION_ID = '44444444-4444-4444-8444-444444444444';
 const OWNER_ID = -123456;
 const HMAC_SECRET = 'identity-verification-key-32-bytes-minimum-material';
+const PREVIEW_FINGERPRINT = 'a'.repeat(64);
 
 function identityContext(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const assertion = {
@@ -18,6 +19,7 @@ function identityContext(overrides: Record<string, unknown> = {}): Record<string
     binding_id: 'binding:vk:001',
     publication_id: PUBLICATION_ID,
     owner_id: OWNER_ID,
+    preview_fingerprint: PREVIEW_FINGERPRINT,
     issued_at: '2026-08-26T19:59:00.000Z',
     expires_at: '2026-08-26T20:01:00.000Z',
     ...overrides,
@@ -57,6 +59,7 @@ test('signed identity is verified and binds exact publication plus VK destinatio
     bindingId: 'binding:vk:001',
     publicationId: PUBLICATION_ID,
     ownerId: OWNER_ID,
+    previewFingerprint: PREVIEW_FINGERPRINT,
     issuedAt: '2026-08-26T19:59:00.000Z',
     expiresAt: '2026-08-26T20:01:00.000Z',
   });

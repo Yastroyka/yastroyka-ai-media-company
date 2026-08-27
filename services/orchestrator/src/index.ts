@@ -91,6 +91,17 @@ export {
 } from './vk-community-live-publisher.ts';
 
 export {
+  VkCommunityRuntimeController,
+  VkCommunityRuntimeGateError,
+  createVkCommunityRuntimeController,
+  type VkCommunityRuntimeApprovalPacket,
+  type VkCommunityRuntimeControllerOptions,
+  type VkCommunityRuntimeGateErrorCode,
+  type VkCommunityRuntimePreviewPort,
+  type VkCommunityRuntimePublishPort,
+} from './vk-community-runtime-controller.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
@@ -160,6 +171,7 @@ export {
 export {
   VkCommunityPublishingAdapter,
   VkCommunityPublishingError,
+  computeVkCommunityPreviewFingerprint,
   type PublishingIdentityBinding,
   type PublishingIdentityBindingPort,
   type VkCommunityPublishTransport,

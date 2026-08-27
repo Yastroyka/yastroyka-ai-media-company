@@ -41,6 +41,7 @@ export interface PublishingIdentityBinding {
   readonly bindingId: string;
   readonly publicationId: string;
   readonly ownerId: number;
+  readonly previewFingerprint: string;
   readonly issuedAt: string;
   readonly expiresAt: string;
 }
@@ -108,6 +109,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/u;
 const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
+const PREVIEW_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/u;
 const VK_SECRET_KEY_PREFIX = 'publishing/vk-community/';
 const EXPECTED_ACTOR_ID = 'publishing_service';
 const EXPECTED_AUDIENCE = 'vk-community-publish';
@@ -195,6 +197,25 @@ function deterministicIdempotencyKey(publicationId: string): string {
   return createHash('sha256').update(publicationId, 'utf8').digest('hex');
 }
 
+export function computeVkCommunityPreviewFingerprint(
+  preview: VkCommunityPublishingPreview,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        version: 1,
+        publication_id: preview.publicationId,
+        platform: preview.platform,
+        owner_id: preview.ownerId,
+        from_group: preview.fromGroup,
+        message: preview.message,
+        idempotency_key: preview.idempotencyKey,
+      }),
+      'utf8',
+    )
+    .digest('hex');
+}
+
 function parseExactTimestamp(value: string): number | null {
   const milliseconds = Date.parse(value);
   if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== value) {
@@ -216,6 +237,7 @@ function requireTrustedBinding(
     binding.audience !== EXPECTED_AUDIENCE ||
     binding.publicationId !== publicationId ||
     binding.ownerId !== ownerId ||
+    !PREVIEW_FINGERPRINT_PATTERN.test(binding.previewFingerprint) ||
     !SAFE_ID_PATTERN.test(binding.bindingId) ||
     issuedAt === null ||
     expiresAt === null ||
@@ -372,6 +394,10 @@ export class VkCommunityPublishingAdapter {
     }
 
     const preview = await this.#buildPreview(publicationId);
+    if (binding.previewFingerprint !== computeVkCommunityPreviewFingerprint(preview)) {
+      fail('VK_IDENTITY_DENIED');
+    }
+
     let executionPromise: Promise<VkCommunityPublishingResult> | null = null;
     let secretWindowOpen = true;
 

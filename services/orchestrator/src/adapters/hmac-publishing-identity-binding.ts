@@ -25,6 +25,7 @@ interface IdentityAssertion {
   readonly binding_id: string;
   readonly publication_id: string;
   readonly owner_id: number;
+  readonly preview_fingerprint: string;
   readonly issued_at: string;
   readonly expires_at: string;
 }
@@ -40,6 +41,7 @@ const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/u;
 const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
 const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/u;
+const PREVIEW_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/u;
 const IDENTITY_SECRET_KEY_PREFIX = 'publishing/identity/vk-community/';
 const EXPECTED_ACTOR_ID = 'publishing_service';
 const EXPECTED_AUDIENCE = 'vk-community-publish';
@@ -118,6 +120,7 @@ function parseEnvelope(value: unknown): IdentityEnvelope {
     'binding_id',
     'publication_id',
     'owner_id',
+    'preview_fingerprint',
     'issued_at',
     'expires_at',
   ]);
@@ -127,6 +130,7 @@ function parseEnvelope(value: unknown): IdentityEnvelope {
   const bindingId = assertion.binding_id;
   const publicationId = assertion.publication_id;
   const ownerId = assertion.owner_id;
+  const previewFingerprint = assertion.preview_fingerprint;
   if (
     actorId !== EXPECTED_ACTOR_ID ||
     audience !== EXPECTED_AUDIENCE ||
@@ -138,6 +142,8 @@ function parseEnvelope(value: unknown): IdentityEnvelope {
     !Number.isSafeInteger(ownerId) ||
     ownerId >= 0 ||
     ownerId < -2_147_483_647 ||
+    typeof previewFingerprint !== 'string' ||
+    !PREVIEW_FINGERPRINT_PATTERN.test(previewFingerprint) ||
     !SIGNATURE_PATTERN.test(envelope.signature)
   ) {
     fail();
@@ -151,6 +157,7 @@ function parseEnvelope(value: unknown): IdentityEnvelope {
       binding_id: bindingId,
       publication_id: publicationId,
       owner_id: ownerId,
+      preview_fingerprint: previewFingerprint,
       issued_at: requireExactTimestamp(assertion.issued_at),
       expires_at: requireExactTimestamp(assertion.expires_at),
     },
@@ -166,6 +173,7 @@ function signingPayload(assertion: IdentityAssertion): string {
     binding_id: assertion.binding_id,
     publication_id: assertion.publication_id,
     owner_id: assertion.owner_id,
+    preview_fingerprint: assertion.preview_fingerprint,
     issued_at: assertion.issued_at,
     expires_at: assertion.expires_at,
   });
@@ -195,6 +203,7 @@ function verifyEnvelope(envelope: IdentityEnvelope, secret: string): PublishingI
     bindingId: envelope.assertion.binding_id,
     publicationId: envelope.assertion.publication_id,
     ownerId: envelope.assertion.owner_id,
+    previewFingerprint: envelope.assertion.preview_fingerprint,
     issuedAt: envelope.assertion.issued_at,
     expiresAt: envelope.assertion.expires_at,
   });

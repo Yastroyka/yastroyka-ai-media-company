@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
   VkCommunityPublishingAdapter,
   VkCommunityPublishingError,
+  computeVkCommunityPreviewFingerprint,
   type PublishingIdentityBinding,
   type VkCommunityPublishingAdapterOptions,
   type VkCommunityPublicationRecord,
@@ -13,6 +15,17 @@ import {
 const PUBLICATION_ID = '11111111-1111-4111-8111-111111111111';
 const NOW = new Date('2026-08-26T15:00:00.000Z');
 const TOKEN = 'vk-secret-token-that-must-never-leak';
+
+function canonicalPreviewFingerprint(message = 'Первый безопасный пост Ястройки'): string {
+  return computeVkCommunityPreviewFingerprint({
+    publicationId: PUBLICATION_ID,
+    platform: 'VK_COMMUNITY',
+    ownerId: -123456,
+    fromGroup: true,
+    message,
+    idempotencyKey: createHash('sha256').update(PUBLICATION_ID, 'utf8').digest('hex'),
+  });
+}
 
 function publication(
   overrides: Partial<VkCommunityPublicationRecord> = {},
@@ -42,6 +55,7 @@ function validBinding(
     bindingId: 'session:publishing:001',
     publicationId: PUBLICATION_ID,
     ownerId: -123456,
+    previewFingerprint: canonicalPreviewFingerprint(),
     issuedAt: '2026-08-26T14:59:00.000Z',
     expiresAt: '2026-08-26T15:01:00.000Z',
     ...overrides,
@@ -247,6 +261,45 @@ test('identity binding cannot be replayed across publication or destination', as
     () => wrongDestination.publish(PUBLICATION_ID, null),
     expectCode('VK_IDENTITY_DENIED'),
   );
+});
+
+test('approved service identity is bound to the exact canonical message before secret access', async () => {
+  let secretCalls = 0;
+  let transportCalls = 0;
+  const adapter = new VkCommunityPublishingAdapter(
+    defaultOptions({
+      publicationState: {
+        async findById() {
+          return publication({
+            payload: {
+              vk_community: {
+                message: 'Подменённый после approval текст',
+              },
+            },
+          });
+        },
+      },
+      secretProvider: {
+        async withSecret(_reference, consumer) {
+          secretCalls += 1;
+          return await consumer(TOKEN);
+        },
+      },
+      transport: {
+        async publishWallPost(request) {
+          transportCalls += 1;
+          return { ownerId: request.ownerId, postId: 1 };
+        },
+      },
+    }),
+  );
+
+  await assert.rejects(
+    () => adapter.publish(PUBLICATION_ID, null),
+    expectCode('VK_IDENTITY_DENIED'),
+  );
+  assert.equal(secretCalls, 0);
+  assert.equal(transportCalls, 0);
 });
 
 test('expired or overlong publishing bindings fail closed', async () => {
