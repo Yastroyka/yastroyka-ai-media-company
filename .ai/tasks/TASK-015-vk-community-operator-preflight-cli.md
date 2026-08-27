@@ -40,6 +40,12 @@ R2. Operator tooling adjacent to production metadata, but intentionally side-eff
 - command cannot access Secret Provider or perform network I/O;
 - exact-head CI passes.
 
+## OPERATOR EXIT CODES
+- `0` — metadata is READY;
+- `2` — metadata is validly parsed but BLOCKED by canonical production-preflight reasons;
+- `64` — CLI usage is invalid and no manifest is read;
+- `65` — manifest file or manifest structure is invalid; rejected input is never echoed.
+
 ## TESTS
 Automated tests for READY, BLOCKED, unknown-field rejection, inline secret-reference rejection, and usage behavior.
 
