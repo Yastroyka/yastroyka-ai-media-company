@@ -1,10 +1,4 @@
-import {
-  createHash,
-  createPublicKey,
-  sign,
-  verify,
-  type KeyObject,
-} from 'node:crypto';
+import { createHash, createPublicKey, sign, verify, type KeyObject } from 'node:crypto';
 
 export interface VkCommunityOwnerGrantAssertion {
   readonly actor_id: 'human_owner';
