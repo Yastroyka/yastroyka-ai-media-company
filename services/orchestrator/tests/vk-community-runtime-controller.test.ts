@@ -5,6 +5,7 @@ import test from 'node:test';
 import { HmacPublishingIdentityBinding } from '../src/adapters/hmac-publishing-identity-binding.ts';
 import {
   VkCommunityPublishingError,
+  computeVkCommunityPreviewFingerprint,
   type VkCommunityPublishingPreview,
   type VkCommunityPublishingResult,
 } from '../src/adapters/vk-community-publishing-adapter.ts';
@@ -39,6 +40,8 @@ const PREVIEW = Object.freeze({
   idempotencyKey: IDEMPOTENCY_KEY,
 });
 
+const PREVIEW_FINGERPRINT = computeVkCommunityPreviewFingerprint(PREVIEW);
+
 const RESULT = Object.freeze({
   publicationId: PUBLICATION_ID,
   platform: 'VK_COMMUNITY' as const,
@@ -51,6 +54,7 @@ const RESULT = Object.freeze({
 interface GrantOverrides {
   readonly publicationId?: string;
   readonly ownerId?: number;
+  readonly previewFingerprint?: string;
   readonly issuedAt?: string;
   readonly expiresAt?: string;
   readonly signature?: string;
@@ -64,6 +68,7 @@ function buildGrant(overrides: GrantOverrides = {}) {
     grant_id: overrides.grantId ?? 'owner-grant-001',
     publication_id: overrides.publicationId ?? PUBLICATION_ID,
     owner_id: overrides.ownerId ?? OWNER_ID,
+    preview_fingerprint: overrides.previewFingerprint ?? PREVIEW_FINGERPRINT,
     issued_at: overrides.issuedAt ?? '2026-08-26T23:59:30.000Z',
     expires_at: overrides.expiresAt ?? '2026-08-27T00:02:00.000Z',
   } as const;
@@ -74,6 +79,7 @@ function buildGrant(overrides: GrantOverrides = {}) {
     grant_id: assertion.grant_id,
     publication_id: assertion.publication_id,
     owner_id: assertion.owner_id,
+    preview_fingerprint: assertion.preview_fingerprint,
     issued_at: assertion.issued_at,
     expires_at: assertion.expires_at,
   });
@@ -146,10 +152,14 @@ function createController(options: {
   };
 }
 
-test('preview is read-only and performs no secret access or live publish', async () => {
+test('preview and approval packet are read-only with no secret access or live publish', async () => {
   const runtime = createController({});
 
   assert.deepEqual(await runtime.controller.preview(PUBLICATION_ID), PREVIEW);
+  assert.deepEqual(await runtime.controller.prepareApproval(PUBLICATION_ID), {
+    preview: PREVIEW,
+    previewFingerprint: PREVIEW_FINGERPRINT,
+  });
   assert.deepEqual(runtime.secretAccesses, []);
   assert.equal(runtime.publishCalls(), 0);
 });
@@ -187,6 +197,7 @@ test('valid owner grant issues a compatible short-lived publishing_service ident
     bindingId: 'owner-grant-001',
     publicationId: PUBLICATION_ID,
     ownerId: OWNER_ID,
+    previewFingerprint: PREVIEW_FINGERPRINT,
     issuedAt: NOW,
     expiresAt: '2026-08-27T00:02:00.000Z',
   });
@@ -196,6 +207,7 @@ test('invalid owner grants fail closed before live publish', async () => {
   const cases = [
     buildGrant({ publicationId: OTHER_PUBLICATION_ID }),
     buildGrant({ ownerId: -999999 }),
+    buildGrant({ previewFingerprint: 'f'.repeat(64) }),
     buildGrant({
       issuedAt: '2026-08-26T23:50:00.000Z',
       expiresAt: '2026-08-26T23:55:00.000Z',
@@ -216,6 +228,27 @@ test('invalid owner grants fail closed before live publish', async () => {
     assert.equal(runtime.publishCalls(), 0);
     assert.ok(!runtime.secretAccesses.includes(IDENTITY_SECRET_REFERENCE.key));
   }
+});
+
+test('owner grant cannot publish a canonical message changed after approval', async () => {
+  const changedPreview = {
+    ...PREVIEW,
+    message: 'Текст изменён после owner approval',
+  };
+  const runtime = createController({
+    preview: changedPreview,
+  });
+
+  await assert.rejects(
+    () => runtime.controller.execute(PUBLICATION_ID, buildGrant()),
+    (error: unknown) => {
+      assert.ok(error instanceof VkCommunityRuntimeGateError);
+      assert.equal(error.code, 'VK_OWNER_GRANT_FAILED');
+      return true;
+    },
+  );
+  assert.equal(runtime.publishCalls(), 0);
+  assert.ok(!runtime.secretAccesses.includes(IDENTITY_SECRET_REFERENCE.key));
 });
 
 test('owner approval secret provider failures are sanitized', async () => {
