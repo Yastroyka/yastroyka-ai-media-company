@@ -1,6 +1,5 @@
 import {
   createHash,
-  createPrivateKey,
   createPublicKey,
   sign,
   verify,
@@ -196,18 +195,10 @@ function parseOwnerPublicKey(value: unknown): { readonly key: KeyObject; readonl
 }
 
 function requireOwnerPrivateKey(value: KeyObject): KeyObject {
-  try {
-    const key = value.type === 'private' ? value : createPrivateKey(value);
-    if (key.type !== 'private' || key.asymmetricKeyType !== 'ed25519') {
-      fail();
-    }
-    return key;
-  } catch (error) {
-    if (error instanceof VkCommunityOwnerGrantError) {
-      throw error;
-    }
+  if (value.type !== 'private' || value.asymmetricKeyType !== 'ed25519') {
     fail();
   }
+  return value;
 }
 
 export function inspectVkCommunityOwnerApprovalPublicKey(
