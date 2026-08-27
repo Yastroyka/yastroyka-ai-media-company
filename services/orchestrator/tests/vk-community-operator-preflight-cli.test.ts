@@ -77,7 +77,11 @@ test('operator preflight emits BLOCKED and exit code 2 for incomplete metadata',
   const stdout: string[] = [];
   const stderr: string[] = [];
   const reads: string[] = [];
-  const { communityId: _communityId, ...withoutCommunityId } = manifest;
+  const withoutCommunityId = {
+    ownerApprovalPublicKey: manifest.ownerApprovalPublicKey,
+    vkCredentialSecretReference: manifest.vkCredentialSecretReference,
+    publishingIdentitySecretReference: manifest.publishingIdentitySecretReference,
+  };
 
   const exitCode = await runVkCommunityOperatorPreflightCli(
     ['preflight', 'vk-production.json'],
