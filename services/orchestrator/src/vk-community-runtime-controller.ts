@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
   VkCommunityPublishingError,
+  computeVkCommunityPreviewFingerprint,
   type VkCommunityPublishingPreview,
   type VkCommunityPublishingResult,
   type VkCommunitySecretProviderPort,
@@ -36,6 +37,11 @@ export interface VkCommunityRuntimePublishPort {
   ): Promise<VkCommunityPublishingResult>;
 }
 
+export interface VkCommunityRuntimeApprovalPacket {
+  readonly preview: VkCommunityPublishingPreview;
+  readonly previewFingerprint: string;
+}
+
 export interface VkCommunityRuntimeControllerOptions {
   readonly communityId: number;
   readonly ownerApprovalSecretReference: unknown;
@@ -53,6 +59,7 @@ interface OwnerGrantAssertion {
   readonly grant_id: string;
   readonly publication_id: string;
   readonly owner_id: number;
+  readonly preview_fingerprint: string;
   readonly issued_at: string;
   readonly expires_at: string;
 }
@@ -69,6 +76,7 @@ interface PublishingIdentityAssertion {
   readonly binding_id: string;
   readonly publication_id: string;
   readonly owner_id: number;
+  readonly preview_fingerprint: string;
   readonly issued_at: string;
   readonly expires_at: string;
 }
@@ -85,6 +93,7 @@ const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
 const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/u;
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{64}$/u;
+const PREVIEW_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/u;
 
 const OWNER_APPROVAL_SECRET_KEY_PREFIX = 'publishing/owner-approval/vk-community/';
 const PUBLISHING_IDENTITY_SECRET_KEY_PREFIX = 'publishing/identity/vk-community/';
@@ -203,6 +212,7 @@ function parseOwnerGrant(
   value: unknown,
   publicationId: string,
   ownerId: number,
+  previewFingerprint: string,
   nowMilliseconds: number,
 ): OwnerGrantEnvelope {
   const code = 'VK_OWNER_GRANT_FAILED' as const;
@@ -215,13 +225,23 @@ function parseOwnerGrant(
   const assertion = expectPlainObject(envelope.assertion, code);
   requireExactKeys(
     assertion,
-    ['actor_id', 'audience', 'grant_id', 'publication_id', 'owner_id', 'issued_at', 'expires_at'],
+    [
+      'actor_id',
+      'audience',
+      'grant_id',
+      'publication_id',
+      'owner_id',
+      'preview_fingerprint',
+      'issued_at',
+      'expires_at',
+    ],
     code,
   );
 
   const grantId = assertion.grant_id;
   const grantPublicationId = assertion.publication_id;
   const grantOwnerId = assertion.owner_id;
+  const grantPreviewFingerprint = assertion.preview_fingerprint;
   const issuedAt = parseExactTimestamp(assertion.issued_at, code);
   const expiresAt = parseExactTimestamp(assertion.expires_at, code);
 
@@ -236,6 +256,9 @@ function parseOwnerGrant(
     typeof grantOwnerId !== 'number' ||
     !Number.isSafeInteger(grantOwnerId) ||
     grantOwnerId !== ownerId ||
+    typeof grantPreviewFingerprint !== 'string' ||
+    !PREVIEW_FINGERPRINT_PATTERN.test(grantPreviewFingerprint) ||
+    grantPreviewFingerprint !== previewFingerprint ||
     issuedAt.milliseconds >= expiresAt.milliseconds ||
     expiresAt.milliseconds - issuedAt.milliseconds > MAX_OWNER_GRANT_LIFETIME_MS ||
     issuedAt.milliseconds > nowMilliseconds + MAX_FUTURE_SKEW_MS ||
@@ -253,6 +276,7 @@ function parseOwnerGrant(
       grant_id: grantId,
       publication_id: grantPublicationId,
       owner_id: grantOwnerId,
+      preview_fingerprint: grantPreviewFingerprint,
       issued_at: issuedAt.value,
       expires_at: expiresAt.value,
     }),
@@ -268,6 +292,7 @@ function ownerGrantSigningPayload(assertion: OwnerGrantAssertion): string {
     grant_id: assertion.grant_id,
     publication_id: assertion.publication_id,
     owner_id: assertion.owner_id,
+    preview_fingerprint: assertion.preview_fingerprint,
     issued_at: assertion.issued_at,
     expires_at: assertion.expires_at,
   });
@@ -281,6 +306,7 @@ function publishingIdentitySigningPayload(assertion: PublishingIdentityAssertion
     binding_id: assertion.binding_id,
     publication_id: assertion.publication_id,
     owner_id: assertion.owner_id,
+    preview_fingerprint: assertion.preview_fingerprint,
     issued_at: assertion.issued_at,
     expires_at: assertion.expires_at,
   });
@@ -324,6 +350,7 @@ function createPublishingIdentityEnvelope(
     binding_id: grant.assertion.grant_id,
     publication_id: grant.assertion.publication_id,
     owner_id: grant.assertion.owner_id,
+    preview_fingerprint: grant.assertion.preview_fingerprint,
     issued_at: new Date(nowMilliseconds).toISOString(),
     expires_at: new Date(expiresAtMilliseconds).toISOString(),
   });
@@ -475,18 +502,33 @@ export class VkCommunityRuntimeController {
     return requirePreview(preview, publicationId, this.#ownerId);
   }
 
+  async prepareApproval(publicationId: string): Promise<VkCommunityRuntimeApprovalPacket> {
+    const preview = await this.preview(publicationId);
+    return Object.freeze({
+      preview,
+      previewFingerprint: computeVkCommunityPreviewFingerprint(preview),
+    });
+  }
+
   async execute(
     publicationId: string,
     ownerGrantContext: unknown,
   ): Promise<VkCommunityPublishingResult> {
-    const preview = await this.preview(publicationId);
+    const approval = await this.prepareApproval(publicationId);
+    const { preview, previewFingerprint } = approval;
     const now = this.#clock();
     const nowMilliseconds = now.getTime();
     if (!Number.isFinite(nowMilliseconds)) {
       fail('VK_OWNER_GRANT_FAILED');
     }
 
-    const grant = parseOwnerGrant(ownerGrantContext, publicationId, this.#ownerId, nowMilliseconds);
+    const grant = parseOwnerGrant(
+      ownerGrantContext,
+      publicationId,
+      this.#ownerId,
+      previewFingerprint,
+      nowMilliseconds,
+    );
     await consumeSecretExactlyOnce(
       this.#secretProvider,
       this.#ownerApprovalSecretReference,
