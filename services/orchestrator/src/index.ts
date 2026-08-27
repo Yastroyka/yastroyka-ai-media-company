@@ -126,6 +126,14 @@ export {
 } from './vk-community-production-preflight.ts';
 
 export {
+  VkCommunityOperatorManifestError,
+  parseVkCommunityOperatorManifest,
+  runVkCommunityOperatorPreflightCli,
+  type VkCommunityOperatorPreflightExitCode,
+  type VkCommunityOperatorPreflightIo,
+} from './vk-community-operator-preflight-cli.ts';
+
+export {
   ClaudeAdapter,
   type ClaudeAdapterOptions,
   type ClaudeMessageRequest,
