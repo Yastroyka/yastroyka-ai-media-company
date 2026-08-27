@@ -8,6 +8,7 @@ import {
   type VkCommunitySecretProviderPort,
   type VkCommunitySecretReference,
 } from './adapters/vk-community-publishing-adapter.ts';
+import type { VkCommunityApprovalPacket } from './vk-community-approval-packet-reader.ts';
 import {
   inspectVkCommunityOwnerApprovalPublicKey,
   verifyVkCommunityOwnerGrant,
@@ -43,10 +44,7 @@ export interface VkCommunityRuntimePublishPort {
   ): Promise<VkCommunityPublishingResult>;
 }
 
-export interface VkCommunityRuntimeApprovalPacket {
-  readonly preview: VkCommunityPublishingPreview;
-  readonly previewFingerprint: string;
-}
+export type VkCommunityRuntimeApprovalPacket = VkCommunityApprovalPacket;
 
 export interface VkCommunityRuntimeControllerOptions {
   readonly communityId: number;

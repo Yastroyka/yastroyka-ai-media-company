@@ -95,10 +95,13 @@ export interface VkCommunityPublishingResult {
   readonly publishedAt: string;
 }
 
-export interface VkCommunityPublishingAdapterOptions {
+export interface VkCommunityPreviewReaderOptions {
   readonly communityId: number;
-  readonly secretReference: unknown;
   readonly publicationState: VkCommunityPublicationStatePort;
+}
+
+export interface VkCommunityPublishingAdapterOptions extends VkCommunityPreviewReaderOptions {
+  readonly secretReference: unknown;
   readonly identityBinding: PublishingIdentityBindingPort;
   readonly secretProvider: VkCommunitySecretProviderPort;
   readonly transport: VkCommunityPublishTransport;
@@ -258,26 +261,16 @@ function requireAccessToken(secret: string): void {
   }
 }
 
-export class VkCommunityPublishingAdapter {
+export class VkCommunityPreviewReader {
   readonly #communityId: number;
-  readonly #secretReference: VkCommunitySecretReference;
   readonly #publicationState: VkCommunityPublicationStatePort;
-  readonly #identityBinding: PublishingIdentityBindingPort;
-  readonly #secretProvider: VkCommunitySecretProviderPort;
-  readonly #transport: VkCommunityPublishTransport;
-  readonly #clock: () => Date;
 
-  constructor(options: VkCommunityPublishingAdapterOptions) {
+  constructor(options: VkCommunityPreviewReaderOptions) {
     this.#communityId = requireCommunityId(options.communityId);
-    this.#secretReference = parseSecretReference(options.secretReference);
     this.#publicationState = options.publicationState;
-    this.#identityBinding = options.identityBinding;
-    this.#secretProvider = options.secretProvider;
-    this.#transport = options.transport;
-    this.#clock = options.clock ?? (() => new Date());
   }
 
-  async #buildPreview(publicationId: string): Promise<VkCommunityPublishingPreview> {
+  async preview(publicationId: string): Promise<VkCommunityPublishingPreview> {
     requireUuid(publicationId);
 
     let record: VkCommunityPublicationRecord | null;
@@ -313,6 +306,35 @@ export class VkCommunityPublishingAdapter {
       }
       fail('VK_PUBLICATION_INVALID');
     }
+  }
+}
+
+export function createVkCommunityPreviewReader(
+  options: VkCommunityPreviewReaderOptions,
+): VkCommunityPreviewReader {
+  return new VkCommunityPreviewReader(options);
+}
+
+export class VkCommunityPublishingAdapter {
+  readonly #communityId: number;
+  readonly #secretReference: VkCommunitySecretReference;
+  readonly #previewReader: VkCommunityPreviewReader;
+  readonly #identityBinding: PublishingIdentityBindingPort;
+  readonly #secretProvider: VkCommunitySecretProviderPort;
+  readonly #transport: VkCommunityPublishTransport;
+  readonly #clock: () => Date;
+
+  constructor(options: VkCommunityPublishingAdapterOptions) {
+    this.#communityId = requireCommunityId(options.communityId);
+    this.#secretReference = parseSecretReference(options.secretReference);
+    this.#previewReader = new VkCommunityPreviewReader({
+      communityId: this.#communityId,
+      publicationState: options.publicationState,
+    });
+    this.#identityBinding = options.identityBinding;
+    this.#secretProvider = options.secretProvider;
+    this.#transport = options.transport;
+    this.#clock = options.clock ?? (() => new Date());
   }
 
   async #executeTransport(
@@ -367,7 +389,7 @@ export class VkCommunityPublishingAdapter {
   }
 
   async preview(publicationId: string): Promise<VkCommunityPublishingPreview> {
-    return this.#buildPreview(publicationId);
+    return this.#previewReader.preview(publicationId);
   }
 
   async publish(
@@ -393,7 +415,7 @@ export class VkCommunityPublishingAdapter {
       fail('VK_IDENTITY_DENIED');
     }
 
-    const preview = await this.#buildPreview(publicationId);
+    const preview = await this.#previewReader.preview(publicationId);
     if (binding.previewFingerprint !== computeVkCommunityPreviewFingerprint(preview)) {
       fail('VK_IDENTITY_DENIED');
     }

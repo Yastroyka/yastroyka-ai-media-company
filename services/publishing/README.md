@@ -24,7 +24,9 @@ The first real VK Community post must not be enabled until all of the following 
 
 The repository now contains:
 
-- `VkCommunityPublishingAdapter` for canonical `AUTO` state validation, read-only preview, transient Secret Provider access, and guarded external execution;
+- `VkCommunityPreviewReader` as the single canonical read-only `VK_COMMUNITY + AUTO` preview implementation used by both approval and execution;
+- `VkCommunityApprovalPacketReader` for the exact owner-inspectable preview plus deterministic preview fingerprint, with no Secret Provider or transport dependency;
+- `VkCommunityPublishingAdapter` for transient Secret Provider access and guarded external execution while recomputing preview through the same canonical reader;
 - `HmacPublishingIdentityBinding` for short-lived `publishing_service` identity verification bound to exact publication and destination;
 - `VkCommunityHttpTransport` pinned to `https://api.vk.com/method/wall.post` and VK API `5.199`;
 - `VkCommunityLivePublisher` for external execution followed by exact canonical result persistence;
@@ -34,6 +36,17 @@ The repository now contains:
 - `preflightVkCommunityProductionActivation` for side-effect-free validation of production destination/public-key/secret-reference metadata before any secret value is read.
 
 The runtime controller intentionally contains only the owner's Ed25519 public verification key and therefore cannot cryptographically mint an owner grant. The private signing key must remain in a trusted owner-side signing operation outside the ordinary publishing runtime.
+
+## Canonical approval packet
+
+`VkCommunityApprovalPacketReader` accepts only deployment-owned `communityId` metadata and a read-only `VkCommunityPublicationStatePort`. The existing PostgreSQL platform workspace store already exposes a compatible `findById(publicationId)` read contract, so composition can inject canonical PostgreSQL state without making the orchestrator depend on the database package.
+
+The reader accepts only an exact `VK_COMMUNITY` publication in `AUTO` state. It emits exactly:
+
+- the canonical preview: publication ID, platform, negative VK owner ID derived from deployment community ID, `fromGroup=true`, exact message, and deterministic idempotency key;
+- the deterministic preview fingerprint over those exact fields.
+
+The publishing adapter uses that same `VkCommunityPreviewReader` again immediately before credential access. Approval and execution therefore do not maintain separate preview-building implementations.
 
 ## Production activation preflight
 
@@ -69,7 +82,7 @@ Before the first real post, the operator must still:
 2. provision the publishing-identity HMAC secret outside the repository and AI-visible channels;
 3. provision the VK access token through the Secret Provider boundary;
 4. bind the deployment to the exact VK Community ID;
-5. generate and inspect the exact read-only approval packet, including its preview fingerprint;
+5. bind the canonical PostgreSQL publication state to the read-only approval-packet reader, then generate and inspect the exact preview and preview fingerprint;
 6. create a short-lived owner execution grant for that exact publication + destination + preview fingerprint;
 7. execute the real publish only after the owner's explicit command.
 
