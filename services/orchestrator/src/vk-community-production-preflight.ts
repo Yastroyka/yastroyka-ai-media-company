@@ -40,8 +40,7 @@ export interface VkCommunityProductionPreflightBlocked {
 }
 
 export type VkCommunityProductionPreflightResult =
-  | VkCommunityProductionPreflightReady
-  | VkCommunityProductionPreflightBlocked;
+  VkCommunityProductionPreflightReady | VkCommunityProductionPreflightBlocked;
 
 const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
