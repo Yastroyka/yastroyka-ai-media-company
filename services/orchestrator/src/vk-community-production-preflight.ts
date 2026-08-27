@@ -1,4 +1,7 @@
-import { createHash, createPublicKey } from 'node:crypto';
+import {
+  inspectVkCommunityOwnerApprovalPublicKey,
+  VkCommunityOwnerGrantError,
+} from './vk-community-owner-grant.ts';
 
 export type VkCommunityProductionPreflightReason =
   | 'COMMUNITY_ID_MISSING'
@@ -44,7 +47,6 @@ const SECRET_PROVIDER_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 const SECRET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
 const VK_CREDENTIAL_PREFIX = 'publishing/vk-community/';
 const PUBLISHING_IDENTITY_PREFIX = 'publishing/identity/vk-community/';
-const MAX_PUBLIC_KEY_LENGTH = 4_096;
 
 function parseCommunityId(value: unknown): number | null {
   if (
@@ -59,25 +61,14 @@ function parseCommunityId(value: unknown): number | null {
 }
 
 function parseOwnerPublicKey(value: unknown): { readonly fingerprint: string } | null {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > MAX_PUBLIC_KEY_LENGTH ||
-    value.includes('\u0000')
-  ) {
-    return null;
-  }
-
   try {
-    const key = createPublicKey(value);
-    if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
+    return Object.freeze({
+      fingerprint: inspectVkCommunityOwnerApprovalPublicKey(value).fingerprint,
+    });
+  } catch (error) {
+    if (error instanceof VkCommunityOwnerGrantError) {
       return null;
     }
-    const der = key.export({ type: 'spki', format: 'der' });
-    return Object.freeze({
-      fingerprint: 'sha256:' + createHash('sha256').update(der).digest('hex'),
-    });
-  } catch {
     return null;
   }
 }
