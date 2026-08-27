@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHmac, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
 import { HmacPublishingIdentityBinding } from '../src/adapters/hmac-publishing-identity-binding.ts';
@@ -19,12 +19,13 @@ const OTHER_PUBLICATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const COMMUNITY_ID = 123456;
 const OWNER_ID = -COMMUNITY_ID;
 const NOW = '2026-08-27T00:00:00.000Z';
-const APPROVAL_SECRET = 'approval-secret-material-1234567890-abcdef';
+const { publicKey: OWNER_APPROVAL_PUBLIC_KEY_OBJECT, privateKey: OWNER_APPROVAL_PRIVATE_KEY } =
+  generateKeyPairSync('ed25519');
+const OWNER_APPROVAL_PUBLIC_KEY = OWNER_APPROVAL_PUBLIC_KEY_OBJECT.export({
+  type: 'spki',
+  format: 'pem',
+}).toString();
 const IDENTITY_SECRET = 'identity-secret-material-1234567890-abcdef';
-const OWNER_APPROVAL_SECRET_REFERENCE = {
-  provider: 'env',
-  key: 'publishing/owner-approval/vk-community/runtime',
-} as const;
 const IDENTITY_SECRET_REFERENCE = {
   provider: 'env',
   key: 'publishing/identity/vk-community/runtime',
@@ -88,13 +89,12 @@ function buildGrant(overrides: GrantOverrides = {}) {
     assertion,
     signature:
       overrides.signature ??
-      createHmac('sha256', APPROVAL_SECRET).update(payload, 'utf8').digest('hex'),
+      sign(null, Buffer.from(payload, 'utf8'), OWNER_APPROVAL_PRIVATE_KEY).toString('hex'),
   };
 }
 
 function createSecretProvider(accesses: string[], overrides: Partial<Record<string, string>> = {}) {
   const values: Record<string, string> = {
-    [OWNER_APPROVAL_SECRET_REFERENCE.key]: APPROVAL_SECRET,
     [IDENTITY_SECRET_REFERENCE.key]: IDENTITY_SECRET,
     ...overrides,
   };
@@ -124,7 +124,7 @@ function createController(options: {
   let publishCalls = 0;
   const controller = new VkCommunityRuntimeController({
     communityId: COMMUNITY_ID,
-    ownerApprovalSecretReference: OWNER_APPROVAL_SECRET_REFERENCE,
+    ownerApprovalPublicKey: OWNER_APPROVAL_PUBLIC_KEY,
     publishingIdentitySecretReference: IDENTITY_SECRET_REFERENCE,
     secretProvider: createSecretProvider(secretAccesses),
     previewer: {
@@ -173,10 +173,7 @@ test('valid owner grant issues a compatible short-lived publishing_service ident
   });
 
   assert.deepEqual(await runtime.controller.execute(PUBLICATION_ID, buildGrant()), RESULT);
-  assert.deepEqual(runtime.secretAccesses, [
-    OWNER_APPROVAL_SECRET_REFERENCE.key,
-    IDENTITY_SECRET_REFERENCE.key,
-  ]);
+  assert.deepEqual(runtime.secretAccesses, [IDENTITY_SECRET_REFERENCE.key]);
   assert.equal(runtime.publishCalls(), 1);
 
   const binding = new HmacPublishingIdentityBinding({
@@ -212,7 +209,7 @@ test('invalid owner grants fail closed before live publish', async () => {
       issuedAt: '2026-08-26T23:50:00.000Z',
       expiresAt: '2026-08-26T23:55:00.000Z',
     }),
-    buildGrant({ signature: '0'.repeat(64) }),
+    buildGrant({ signature: '0'.repeat(128) }),
   ];
 
   for (const grant of cases) {
@@ -251,12 +248,12 @@ test('owner grant cannot publish a canonical message changed after approval', as
   assert.ok(!runtime.secretAccesses.includes(IDENTITY_SECRET_REFERENCE.key));
 });
 
-test('owner approval secret provider failures are sanitized', async () => {
+test('publishing identity secret provider failures are sanitized after owner verification', async () => {
   const rawSecret = 'raw-provider-error-containing-sensitive-context';
   let publishCalls = 0;
   const controller = new VkCommunityRuntimeController({
     communityId: COMMUNITY_ID,
-    ownerApprovalSecretReference: OWNER_APPROVAL_SECRET_REFERENCE,
+    ownerApprovalPublicKey: OWNER_APPROVAL_PUBLIC_KEY,
     publishingIdentitySecretReference: IDENTITY_SECRET_REFERENCE,
     secretProvider: {
       async withSecret() {
@@ -281,12 +278,39 @@ test('owner approval secret provider failures are sanitized', async () => {
     () => controller.execute(PUBLICATION_ID, buildGrant()),
     (error: unknown) => {
       assert.ok(error instanceof VkCommunityRuntimeGateError);
-      assert.equal(error.code, 'VK_OWNER_GRANT_FAILED');
+      assert.equal(error.code, 'VK_IDENTITY_ISSUE_FAILED');
       assert.doesNotMatch(JSON.stringify(error), new RegExp(rawSecret, 'u'));
       return true;
     },
   );
   assert.equal(publishCalls, 0);
+});
+
+test('runtime accepts only an Ed25519 public verification key and never needs the owner private key', () => {
+  assert.throws(
+    () =>
+      new VkCommunityRuntimeController({
+        communityId: COMMUNITY_ID,
+        ownerApprovalPublicKey: 'not-an-ed25519-public-key',
+        publishingIdentitySecretReference: IDENTITY_SECRET_REFERENCE,
+        secretProvider: createSecretProvider([]),
+        previewer: {
+          async preview() {
+            return PREVIEW;
+          },
+        },
+        publisher: {
+          async publishAndPersist() {
+            return RESULT;
+          },
+        },
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof VkCommunityRuntimeGateError);
+      assert.equal(error.code, 'VK_OWNER_GRANT_FAILED');
+      return true;
+    },
+  );
 });
 
 test('runtime rejects preview or result evidence for another target', async () => {
