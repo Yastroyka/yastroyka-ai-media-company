@@ -1,0 +1,36 @@
+name: TASK-014 Format Probe
+
+on:
+  push:
+    branches:
+      - 'feat/first-real-vk-post-production-preflight'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+        with:
+          version: 11.20.0
+          run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Print exact Prettier diff
+        run: |
+          pnpm exec prettier --write services/orchestrator/src/vk-community-owner-grant.ts services/orchestrator/src/vk-community-production-preflight.ts services/orchestrator/tests/vk-community-owner-grant.test.ts services/orchestrator/tests/vk-community-production-preflight.test.ts
+          git diff -- services/orchestrator/src/vk-community-owner-grant.ts services/orchestrator/src/vk-community-production-preflight.ts services/orchestrator/tests/vk-community-owner-grant.test.ts services/orchestrator/tests/vk-community-production-preflight.test.ts
