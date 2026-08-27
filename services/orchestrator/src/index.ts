@@ -94,6 +94,7 @@ export {
   VkCommunityRuntimeController,
   VkCommunityRuntimeGateError,
   createVkCommunityRuntimeController,
+  type VkCommunityRuntimeApprovalPacket,
   type VkCommunityRuntimeControllerOptions,
   type VkCommunityRuntimeGateErrorCode,
   type VkCommunityRuntimePreviewPort,
@@ -170,6 +171,7 @@ export {
 export {
   VkCommunityPublishingAdapter,
   VkCommunityPublishingError,
+  computeVkCommunityPreviewFingerprint,
   type PublishingIdentityBinding,
   type PublishingIdentityBindingPort,
   type VkCommunityPublishTransport,
