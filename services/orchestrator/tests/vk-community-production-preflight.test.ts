@@ -48,6 +48,29 @@ test('production preflight rejects invalid destination, public key and secret na
   });
 });
 
+test('production preflight rejects owner private PEM where a public key is required', () => {
+  const { privateKey } = generateKeyPairSync('ed25519');
+  const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+
+  const result = preflightVkCommunityProductionActivation({
+    communityId: 123456,
+    ownerApprovalPublicKey: privatePem,
+    vkCredentialSecretReference: {
+      provider: 'env',
+      key: 'publishing/vk-community/yastroyka',
+    },
+    publishingIdentitySecretReference: {
+      provider: 'env',
+      key: 'publishing/identity/vk-community/runtime',
+    },
+  });
+
+  assert.deepEqual(result, {
+    status: 'BLOCKED',
+    reasons: ['OWNER_PUBLIC_KEY_INVALID'],
+  });
+});
+
 test('production preflight returns sanitized READY metadata without secret values', () => {
   const result = preflightVkCommunityProductionActivation({
     communityId: 123456,
