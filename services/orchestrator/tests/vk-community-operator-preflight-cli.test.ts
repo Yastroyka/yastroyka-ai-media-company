@@ -123,32 +123,32 @@ test('operator manifest rejects unknown top-level fields without reflecting secr
 test(
   'operator preflight delegates inline secret-reference fields to fail-closed canonical validation',
   async () => {
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  const reads: string[] = [];
-  const manifest = {
-    ...readyManifest(),
-    vkCredentialSecretReference: {
-      provider: 'env',
-      key: 'publishing/vk-community/yastroyka',
-      token: 'inline-secret-must-not-be-accepted',
-    },
-  };
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const reads: string[] = [];
+    const manifest = {
+      ...readyManifest(),
+      vkCredentialSecretReference: {
+        provider: 'env',
+        key: 'publishing/vk-community/yastroyka',
+        token: 'inline-secret-must-not-be-accepted',
+      },
+    };
 
-  const exitCode = await runVkCommunityOperatorPreflightCli(
-    ['preflight', 'vk-production.json'],
-    ioFor(JSON.stringify(manifest), stdout, stderr, reads),
-  );
+    const exitCode = await runVkCommunityOperatorPreflightCli(
+      ['preflight', 'vk-production.json'],
+      ioFor(JSON.stringify(manifest), stdout, stderr, reads),
+    );
 
-  assert.equal(exitCode, 2);
-  assert.deepEqual(stderr, []);
-  const result = JSON.parse(stdout[0] ?? '{}') as {
-    readonly status?: string;
-    readonly reasons?: readonly string[];
-  };
-  assert.equal(result.status, 'BLOCKED');
-  assert.deepEqual(result.reasons, ['VK_CREDENTIAL_REFERENCE_INVALID']);
-  assert.doesNotMatch(stdout.join(''), /inline-secret-must-not-be-accepted/u);
+    assert.equal(exitCode, 2);
+    assert.deepEqual(stderr, []);
+    const result = JSON.parse(stdout[0] ?? '{}') as {
+      readonly status?: string;
+      readonly reasons?: readonly string[];
+    };
+    assert.equal(result.status, 'BLOCKED');
+    assert.deepEqual(result.reasons, ['VK_CREDENTIAL_REFERENCE_INVALID']);
+    assert.doesNotMatch(stdout.join(''), /inline-secret-must-not-be-accepted/u);
   },
 );
 
