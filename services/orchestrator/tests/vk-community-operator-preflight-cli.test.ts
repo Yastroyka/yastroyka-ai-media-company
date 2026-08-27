@@ -99,26 +99,29 @@ test('operator preflight emits BLOCKED and exit code 2 for incomplete metadata',
   });
 });
 
-test('operator manifest rejects unknown top-level fields without reflecting secret input', async () => {
-  const rejectedSecret = 'must-never-be-reflected';
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  const reads: string[] = [];
-  const manifest = {
-    ...readyManifest(),
-    vkAccessToken: rejectedSecret,
-  };
+test(
+  'operator manifest rejects unknown top-level fields without reflecting secret input',
+  async () => {
+    const rejectedSecret = 'must-never-be-reflected';
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const reads: string[] = [];
+    const manifest = {
+      ...readyManifest(),
+      vkAccessToken: rejectedSecret,
+    };
 
-  const exitCode = await runVkCommunityOperatorPreflightCli(
-    ['preflight', 'vk-production.json'],
-    ioFor(JSON.stringify(manifest), stdout, stderr, reads),
-  );
+    const exitCode = await runVkCommunityOperatorPreflightCli(
+      ['preflight', 'vk-production.json'],
+      ioFor(JSON.stringify(manifest), stdout, stderr, reads),
+    );
 
-  assert.equal(exitCode, 65);
-  assert.deepEqual(stdout, []);
-  assert.deepEqual(stderr, ['VK production preflight manifest invalid\n']);
-  assert.doesNotMatch(stderr.join(''), new RegExp(rejectedSecret, 'u'));
-});
+    assert.equal(exitCode, 65);
+    assert.deepEqual(stdout, []);
+    assert.deepEqual(stderr, ['VK production preflight manifest invalid\n']);
+    assert.doesNotMatch(stderr.join(''), new RegExp(rejectedSecret, 'u'));
+  },
+);
 
 test(
   'operator preflight delegates inline secret-reference fields to fail-closed canonical validation',
