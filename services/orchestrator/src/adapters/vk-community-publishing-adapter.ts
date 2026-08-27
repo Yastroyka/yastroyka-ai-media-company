@@ -389,7 +389,7 @@ export class VkCommunityPublishingAdapter {
   }
 
   async preview(publicationId: string): Promise<VkCommunityPublishingPreview> {
-    return await this.#previewReader.preview(publicationId);
+    return this.#previewReader.preview(publicationId);
   }
 
   async publish(
