@@ -48,7 +48,9 @@ function expectCode(code: string): (error: unknown) => boolean {
   };
 }
 
-test('approval packet is deterministic and contains only the exact canonical preview and fingerprint', async () => {
+test(
+  'approval packet is deterministic and contains only the exact canonical preview and fingerprint',
+  async () => {
   const reader = new VkCommunityApprovalPacketReader({
     communityId: 123456,
     publicationState: stateWith(publication()),
@@ -74,7 +76,8 @@ test('approval packet is deterministic and contains only the exact canonical pre
     JSON.stringify(first),
     /access[_-]?token|private key|password|credential|hmac|secret/iu,
   );
-});
+  },
+);
 
 test('approval fingerprint is bound to the deployment destination', async () => {
   const first = new VkCommunityApprovalPacketReader({
@@ -94,7 +97,9 @@ test('approval fingerprint is bound to the deployment destination', async () => 
   assert.notEqual(firstPacket.previewFingerprint, secondPacket.previewFingerprint);
 });
 
-test('approval packet fails closed for missing, wrong-platform, non-AUTO and malformed state', async () => {
+test(
+  'approval packet fails closed for missing, wrong-platform, non-AUTO and malformed state',
+  async () => {
   const cases: readonly [
     VkCommunityPublicationRecord | null,
     string,
@@ -122,7 +127,8 @@ test('approval packet fails closed for missing, wrong-platform, non-AUTO and mal
     });
     await assert.rejects(() => reader.prepare(PUBLICATION_ID), expectCode(code));
   }
-});
+  },
+);
 
 test('approval packet sanitizes canonical-state read failures', async () => {
   const publicationState: VkCommunityPublicationStatePort = {
