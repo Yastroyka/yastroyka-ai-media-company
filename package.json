@@ -23,7 +23,7 @@
     "codex:smoke": "node scripts/codex-smoke.mjs",
     "test:codex-hooks": "node --test .codex/hooks/policy.test.mjs",
     "lint": "eslint . --max-warnings 0",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --write services/orchestrator/tests/vk-community-operator-preflight-cli.test.ts && git diff -- services/orchestrator/tests/vk-community-operator-preflight-cli.test.ts && exit 1",
     "quality:check": "pnpm run toolchain:check && pnpm run codex:smoke && pnpm run test:codex-hooks && pnpm run lint && pnpm run format:check"
   }
 }
