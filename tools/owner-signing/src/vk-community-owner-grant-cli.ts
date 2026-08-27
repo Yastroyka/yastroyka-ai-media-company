@@ -1,4 +1,4 @@
-import { createPrivateKey, createPublicKey, randomUUID, type KeyObject } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, randomUUID, type KeyObject } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -110,7 +110,9 @@ function parsePreview(value: unknown): VkCommunityPublishingPreview {
     typeof preview.message !== 'string' ||
     preview.message.length === 0 ||
     typeof preview.idempotencyKey !== 'string' ||
-    !HEX_64_PATTERN.test(preview.idempotencyKey)
+    !HEX_64_PATTERN.test(preview.idempotencyKey) ||
+    preview.idempotencyKey !==
+      createHash('sha256').update(preview.publicationId, 'utf8').digest('hex')
   ) {
     failInput();
   }
@@ -221,10 +223,12 @@ export async function runVkCommunityOwnerGrantCli(
   }
 
   let preflight: ReturnType<typeof preflightVkCommunityProductionActivation>;
+  let ownerApprovalPublicKey: unknown;
   try {
     const manifest = parseVkCommunityOperatorManifest(
       await dependencies.readTextFile(manifestPath),
     );
+    ownerApprovalPublicKey = manifest.ownerApprovalPublicKey;
     preflight = preflightVkCommunityProductionActivation(manifest);
   } catch {
     return genericInputError(io);
@@ -282,7 +286,7 @@ export async function runVkCommunityOwnerGrantCli(
 
     verifyVkCommunityOwnerGrant({
       grant,
-      ownerApprovalPublicKey: preflight.ownerApprovalPublicKey,
+      ownerApprovalPublicKey,
       publicationId: approvalPacket.preview.publicationId,
       ownerId: approvalPacket.preview.ownerId,
       previewFingerprint: approvalPacket.previewFingerprint,
