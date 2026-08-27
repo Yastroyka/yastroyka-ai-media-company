@@ -121,10 +121,7 @@ function requireAssertionValues(assertion: VkCommunityOwnerGrantAssertion): void
 
   const issuedAt = Date.parse(requireExactTimestamp(assertion.issued_at));
   const expiresAt = Date.parse(requireExactTimestamp(assertion.expires_at));
-  if (
-    issuedAt >= expiresAt ||
-    expiresAt - issuedAt > MAX_OWNER_GRANT_LIFETIME_MS
-  ) {
+  if (issuedAt >= expiresAt || expiresAt - issuedAt > MAX_OWNER_GRANT_LIFETIME_MS) {
     fail();
   }
 }
