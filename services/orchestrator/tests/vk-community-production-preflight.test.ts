@@ -101,9 +101,6 @@ test('production preflight rejects extra inline secret fields', () => {
 
   assert.deepEqual(result, {
     status: 'BLOCKED',
-    reasons: [
-      'VK_CREDENTIAL_REFERENCE_INVALID',
-      'PUBLISHING_IDENTITY_REFERENCE_INVALID',
-    ],
+    reasons: ['VK_CREDENTIAL_REFERENCE_INVALID', 'PUBLISHING_IDENTITY_REFERENCE_INVALID'],
   });
 });
