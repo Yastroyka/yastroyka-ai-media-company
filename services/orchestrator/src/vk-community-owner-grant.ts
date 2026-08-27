@@ -1,4 +1,5 @@
 import {
+  createHash,
   createPrivateKey,
   createPublicKey,
   sign,
@@ -30,6 +31,11 @@ export interface CreateVkCommunityOwnerGrantAssertionInput {
   readonly previewFingerprint: string;
   readonly issuedAt: string;
   readonly expiresAt: string;
+}
+
+export interface VkCommunityOwnerApprovalPublicKeyMetadata {
+  readonly pem: string;
+  readonly fingerprint: string;
 }
 
 export interface VerifyVkCommunityOwnerGrantInput {
@@ -158,7 +164,7 @@ function parseEnvelope(value: unknown): VkCommunityOwnerGrantEnvelope {
   });
 }
 
-function parseOwnerPublicKey(value: unknown): KeyObject {
+function parseOwnerPublicKey(value: unknown): { readonly key: KeyObject; readonly pem: string } {
   if (
     typeof value !== 'string' ||
     value.length === 0 ||
@@ -173,7 +179,7 @@ function parseOwnerPublicKey(value: unknown): KeyObject {
     if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
       fail();
     }
-    return key;
+    return Object.freeze({ key, pem: value });
   } catch (error) {
     if (error instanceof VkCommunityOwnerGrantError) {
       throw error;
@@ -195,6 +201,17 @@ function requireOwnerPrivateKey(value: KeyObject): KeyObject {
     }
     fail();
   }
+}
+
+export function inspectVkCommunityOwnerApprovalPublicKey(
+  value: unknown,
+): VkCommunityOwnerApprovalPublicKeyMetadata {
+  const parsed = parseOwnerPublicKey(value);
+  const der = parsed.key.export({ type: 'spki', format: 'der' });
+  return Object.freeze({
+    pem: parsed.pem,
+    fingerprint: 'sha256:' + createHash('sha256').update(der).digest('hex'),
+  });
 }
 
 export function createVkCommunityOwnerGrantAssertion(
@@ -257,7 +274,7 @@ export function verifyVkCommunityOwnerGrant(
   input: VerifyVkCommunityOwnerGrantInput,
 ): VkCommunityOwnerGrantEnvelope {
   const envelope = parseEnvelope(input.grant);
-  const publicKey = parseOwnerPublicKey(input.ownerApprovalPublicKey);
+  const publicKey = parseOwnerPublicKey(input.ownerApprovalPublicKey).key;
   const nowMilliseconds = input.now.getTime();
   const issuedAtMilliseconds = Date.parse(envelope.assertion.issued_at);
   const expiresAtMilliseconds = Date.parse(envelope.assertion.expires_at);
