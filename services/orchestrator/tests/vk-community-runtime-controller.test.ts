@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac, generateKeyPairSync, sign } from 'node:crypto';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
 import { HmacPublishingIdentityBinding } from '../src/adapters/hmac-publishing-identity-binding.ts';
