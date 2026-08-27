@@ -1,6 +1,6 @@
 export { loadDatabaseConfig, type DatabaseConfig } from './config.ts';
 
-export { createDatabaseConnection } from './connection.ts';
+export { createDatabaseConnection, createReadOnlyDatabaseConnection } from './connection.ts';
 
 export { createMigrator } from './migrator.ts';
 
