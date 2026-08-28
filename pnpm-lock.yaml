@@ -81,6 +81,19 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
 
+  services/publishing:
+    dependencies:
+      '@yastroyka/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@yastroyka/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
   services/model-exchange:
     devDependencies:
       '@types/node':

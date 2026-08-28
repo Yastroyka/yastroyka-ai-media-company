@@ -101,6 +101,12 @@ jobs:
       - name: Run Commerce Content Bridge tests
         run: pnpm --filter @yastroyka/commerce-bridge run test
 
+      - name: Typecheck publishing service
+        run: pnpm --filter @yastroyka/publishing run typecheck
+
+      - name: Run publishing service tests
+        run: pnpm --filter @yastroyka/publishing run test
+
       - name: Typecheck database package
         run: pnpm --filter @yastroyka/db run typecheck
 
