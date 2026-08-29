@@ -145,3 +145,31 @@ Database/config/internal errors are collapsed to one generic operational error a
 This command has no VK transport, no Secret Provider access for VK/HMAC material, no owner private signing key, no owner-grant signing, no publication mutation, and no `wall.post` path.
 
 Exit codes are `0` for READY, `2` for BLOCKED, `64` for usage error, `65` for invalid operator input, and `70` for a sanitized operational failure.
+
+
+## Signed execution verifier
+
+TASK-019 adds a final read-only verification step between offline owner signing and any secret-bearing runtime execution:
+
+```bash
+pnpm --filter @yastroyka/publishing vk:verify-execution \
+  <publication-id> \
+  ./owner-grant.json \
+  ./vk-production.json
+```
+
+The verifier first requires the same non-secret production manifest to pass canonical preflight. If production metadata is blocked, the grant file is not read and PostgreSQL is not opened.
+
+When preflight is ready, the verifier parses the public owner-grant envelope, opens the same TASK-017 read-only PostgreSQL boundary, re-reads the canonical publication, and recomputes the exact preview fingerprint. It then verifies the Ed25519 owner grant against:
+
+- the exact publication ID;
+- the deployment-owned VK destination;
+- the freshly recomputed preview fingerprint;
+- the configured owner public verification key;
+- the current time, including grant expiry and allowed clock skew.
+
+A text change after owner signing therefore invalidates the grant even if the publication ID did not change.
+
+Successful output is a sanitized `READY` binding containing only publication ID, owner ID, preview fingerprint, grant ID, and grant expiration. Invalid/stale grants return `BLOCKED / OWNER_GRANT`; invalid canonical publication state returns `BLOCKED / PUBLICATION`.
+
+TASK-019 has no Secret Provider dependency, no VK token, no publishing-identity HMAC value, no service-identity issuance, no mutation, no VK transport, and no `wall.post` path. A real external write remains a separate explicit owner gate.
