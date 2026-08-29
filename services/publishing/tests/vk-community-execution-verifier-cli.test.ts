@@ -6,6 +6,7 @@ import {
   computeVkCommunityPreviewFingerprint,
   createVkCommunityOwnerGrantAssertion,
   signVkCommunityOwnerGrant,
+  type VkCommunityPublicationRecord,
   type VkCommunityPublishingPreview,
 } from '@yastroyka/orchestrator';
 
@@ -52,7 +53,7 @@ function preview(message = 'Свежий текст первого поста'):
   };
 }
 
-function record(message = 'Свежий текст первого поста') {
+function record(message = 'Свежий текст первого поста'): VkCommunityPublicationRecord {
   return {
     publicationId: PUBLICATION_ID,
     platform: 'VK_COMMUNITY',
@@ -62,7 +63,7 @@ function record(message = 'Свежий текст первого поста') {
         message,
       },
     },
-  } as const;
+  };
 }
 
 function grant(privateKey: ReturnType<typeof keys>['privateKey'], signedPreview = preview()) {
