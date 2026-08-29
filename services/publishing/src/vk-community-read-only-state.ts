@@ -6,7 +6,9 @@ export interface VkCommunityReadOnlyPublicationStateLease {
   readonly close: () => Promise<void>;
 }
 
-export async function openPostgresVkCommunityReadOnlyState(): Promise<VkCommunityReadOnlyPublicationStateLease> {
+export async function openPostgresVkCommunityReadOnlyState(): Promise<
+  VkCommunityReadOnlyPublicationStateLease
+> {
   const database = createReadOnlyDatabaseConnection();
 
   try {
