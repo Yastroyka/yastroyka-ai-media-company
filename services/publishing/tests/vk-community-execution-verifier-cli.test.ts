@@ -120,7 +120,9 @@ function dependencies(
   };
 }
 
-test('execution verifier returns a sanitized READY binding for exact fresh canonical state', async () => {
+test(
+  'execution verifier returns a sanitized READY binding for exact fresh canonical state',
+  async () => {
   const pair = keys();
   const stdout: string[] = [];
   const stderr: string[] = [];
@@ -163,7 +165,8 @@ test('execution verifier returns a sanitized READY binding for exact fresh canon
     stdout.join(''),
     /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|credential|password|hmac|secret/iu,
   );
-});
+  },
+);
 
 test('changed canonical publication invalidates an already signed grant', async () => {
   const pair = keys();
