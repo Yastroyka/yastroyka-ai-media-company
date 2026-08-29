@@ -123,48 +123,48 @@ function dependencies(
 test(
   'execution verifier returns a sanitized READY binding for exact fresh canonical state',
   async () => {
-  const pair = keys();
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  const counters = { reads: [] as string[], opens: 0, closes: 0 };
+    const pair = keys();
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const counters = { reads: [] as string[], opens: 0, closes: 0 };
 
-  const exitCode = await runVkCommunityExecutionVerifier(
-    ['verify-execution', PUBLICATION_ID, 'grant.json', 'manifest.json'],
-    dependencies(pair.publicPem, grant(pair.privateKey), record(), counters),
-    io(stdout, stderr),
-  );
+    const exitCode = await runVkCommunityExecutionVerifier(
+      ['verify-execution', PUBLICATION_ID, 'grant.json', 'manifest.json'],
+      dependencies(pair.publicPem, grant(pair.privateKey), record(), counters),
+      io(stdout, stderr),
+    );
 
-  assert.equal(exitCode, 0);
-  assert.deepEqual(counters, {
-    reads: ['manifest.json', 'grant.json'],
-    opens: 1,
-    closes: 1,
-  });
-  assert.deepEqual(stderr, []);
+    assert.equal(exitCode, 0);
+    assert.deepEqual(counters, {
+      reads: ['manifest.json', 'grant.json'],
+      opens: 1,
+      closes: 1,
+    });
+    assert.deepEqual(stderr, []);
 
-  const output = JSON.parse(stdout[0] ?? '{}') as {
-    readonly status?: string;
-    readonly executionBinding?: {
-      readonly publicationId?: string;
-      readonly ownerId?: number;
-      readonly previewFingerprint?: string;
-      readonly grantId?: string;
-      readonly grantExpiresAt?: string;
+    const output = JSON.parse(stdout[0] ?? '{}') as {
+      readonly status?: string;
+      readonly executionBinding?: {
+        readonly publicationId?: string;
+        readonly ownerId?: number;
+        readonly previewFingerprint?: string;
+        readonly grantId?: string;
+        readonly grantExpiresAt?: string;
+      };
     };
-  };
-  assert.equal(output.status, 'READY');
-  assert.equal(output.executionBinding?.publicationId, PUBLICATION_ID);
-  assert.equal(output.executionBinding?.ownerId, -123456);
-  assert.equal(output.executionBinding?.grantId, 'task-019-grant');
-  assert.equal(output.executionBinding?.grantExpiresAt, '2026-08-29T19:02:00.000Z');
-  assert.equal(
-    output.executionBinding?.previewFingerprint,
-    computeVkCommunityPreviewFingerprint(preview()),
-  );
-  assert.doesNotMatch(
-    stdout.join(''),
-    /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|credential|password|hmac|secret/iu,
-  );
+    assert.equal(output.status, 'READY');
+    assert.equal(output.executionBinding?.publicationId, PUBLICATION_ID);
+    assert.equal(output.executionBinding?.ownerId, -123456);
+    assert.equal(output.executionBinding?.grantId, 'task-019-grant');
+    assert.equal(output.executionBinding?.grantExpiresAt, '2026-08-29T19:02:00.000Z');
+    assert.equal(
+      output.executionBinding?.previewFingerprint,
+      computeVkCommunityPreviewFingerprint(preview()),
+    );
+    assert.doesNotMatch(
+      stdout.join(''),
+      /BEGIN PUBLIC KEY|PRIVATE KEY|access[_-]?token|credential|password|hmac|secret/iu,
+    );
   },
 );
 
