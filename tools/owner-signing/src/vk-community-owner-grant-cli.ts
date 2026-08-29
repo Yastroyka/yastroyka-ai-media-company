@@ -1,4 +1,10 @@
-import { createHash, createPrivateKey, createPublicKey, randomUUID, type KeyObject } from 'node:crypto';
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  randomUUID,
+  type KeyObject,
+} from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,8 +36,7 @@ export interface VkCommunityOwnerGrantCliIo {
   readonly writeStderr: (text: string) => void;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const HEX_64_PATTERN = /^[0-9a-f]{64}$/u;
 const MAX_TEXT_FILE_LENGTH = 65_536;
 const MAX_PRIVATE_KEY_LENGTH = 16_384;
@@ -73,11 +78,7 @@ function requireExactKeys(value: Record<string, unknown>, expected: readonly str
 }
 
 function parseJson(text: string): unknown {
-  if (
-    text.length === 0 ||
-    text.length > MAX_TEXT_FILE_LENGTH ||
-    text.includes('\u0000')
-  ) {
+  if (text.length === 0 || text.length > MAX_TEXT_FILE_LENGTH || text.includes('\u0000')) {
     failInput();
   }
   try {
@@ -259,12 +260,9 @@ export async function runVkCommunityOwnerGrantCli(
 
   let grant: VkCommunityOwnerGrantEnvelope;
   try {
-    const privateKey = parseOwnerPrivateKey(
-      await dependencies.readTextFile(privateKeyPath),
-    );
+    const privateKey = parseOwnerPrivateKey(await dependencies.readTextFile(privateKeyPath));
     if (
-      ownerPublicKeyFingerprintFromPrivateKey(privateKey) !==
-      preflight.ownerPublicKeyFingerprint
+      ownerPublicKeyFingerprintFromPrivateKey(privateKey) !== preflight.ownerPublicKeyFingerprint
     ) {
       failInput();
     }
