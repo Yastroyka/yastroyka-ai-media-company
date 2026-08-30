@@ -208,6 +208,15 @@ export {
 } from './adapters/vk-community-http-transport.ts';
 
 export {
+  VK_RESOLVE_SCREEN_NAME_ENDPOINT,
+  VkCommunityScreenNameResolver,
+  VkCommunityScreenNameResolverError,
+  type VkCommunityResolvedObjectType,
+  type VkCommunityScreenNameResolution,
+  type VkCommunityScreenNameResolverOptions,
+} from './adapters/vk-community-screen-name-resolver.ts';
+
+export {
   VkCommunityPreviewReader,
   VkCommunityPublishingAdapter,
   VkCommunityPublishingError,
