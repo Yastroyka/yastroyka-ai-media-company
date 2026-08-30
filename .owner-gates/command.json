@@ -2,8 +2,8 @@
   "version": 1,
   "action": "ready",
   "repository": "Yastroyka/yastroyka-ai-media-company",
-  "pr": 26,
-  "expectedHeadSha": "e321a9c84a17e8378eaefadc0abdb730341b2269",
+  "pr": 27,
+  "expectedHeadSha": "a30065a82d8efd2f9241215bf02530d591deb73c",
   "requestedBy": "Yastroyka",
-  "requestId": "ready-pr26-20260830T1454Z"
+  "requestId": "ready-pr27-20260830T1509Z"
 }
