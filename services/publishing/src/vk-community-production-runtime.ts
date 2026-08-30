@@ -1,4 +1,3 @@
-import type { AuthorizationAuditSink, PolicyContractV2 } from '@yastroyka/auth';
 import {
   PostgresPlatformWorkspaceStore,
   PostgresVkCommunityResultStore,
@@ -19,6 +18,9 @@ import {
 } from '@yastroyka/orchestrator';
 
 export type VkCommunityProductionDatabase = ReturnType<typeof createDatabaseConnection>;
+type VkCommunityResultStoreOptions = ConstructorParameters<
+  typeof PostgresVkCommunityResultStore
+>[1];
 
 export type VkCommunityProductionRuntimeErrorCode = 'VK_PRODUCTION_PREFLIGHT_BLOCKED';
 
@@ -35,8 +37,8 @@ export class VkCommunityProductionRuntimeError extends Error {
 export interface VkCommunityProductionRuntimeOptions {
   readonly manifest: VkCommunityProductionPreflightInput;
   readonly database: VkCommunityProductionDatabase;
-  readonly authorizationPolicy: PolicyContractV2;
-  readonly authorizationAuditSink: AuthorizationAuditSink;
+  readonly authorizationPolicy: VkCommunityResultStoreOptions['authorizationPolicy'];
+  readonly authorizationAuditSink: VkCommunityResultStoreOptions['authorizationAuditSink'];
   readonly secretProvider: VkCommunitySecretProviderPort;
   readonly transport: VkCommunityPublishTransport;
   readonly clock?: () => Date;
