@@ -66,6 +66,7 @@ export class VkCommunityProductionRuntime {
       authorizationAuditSink: options.authorizationAuditSink,
       communityId: preflight.communityId,
     });
+    const optionalClock = options.clock === undefined ? {} : { clock: options.clock };
 
     const identityBinding = new HmacPublishingIdentityBinding({
       secretReference: preflight.publishingIdentitySecretReference,
@@ -79,7 +80,7 @@ export class VkCommunityProductionRuntime {
       identityBinding,
       secretProvider: options.secretProvider,
       transport: options.transport,
-      clock: options.clock,
+      ...optionalClock,
     });
 
     const publisher = new VkCommunityLivePublisher({
@@ -95,7 +96,7 @@ export class VkCommunityProductionRuntime {
       secretProvider: options.secretProvider,
       previewer: execution,
       publisher,
-      clock: options.clock,
+      ...optionalClock,
     });
 
     this.deployment = Object.freeze({
