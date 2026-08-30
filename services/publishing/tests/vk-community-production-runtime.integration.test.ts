@@ -22,6 +22,7 @@ import {
 
 const TEST_DATABASE_HOST = '127.0.0.1';
 const TEST_DATABASE_NAME = 'yastroyka_r1_test';
+const TEST_DATABASE_USER = 'yastroyka_r1_app';
 const MASTER_CONTENT_ID = '00000000-0000-4000-8000-000000000200';
 const VALID_PUBLICATION_ID = '20202020-2020-4020-8020-202020202020';
 const TAMPERED_PUBLICATION_ID = '20202020-2020-4020-8020-202020202021';
@@ -34,8 +35,31 @@ const IDENTITY_SECRET_KEY = 'publishing/identity/vk-community/task-020';
 const VK_ACCESS_TOKEN = 'task-020-fake-vk-token';
 const IDENTITY_SECRET = 'task-020-identity-secret-material-32-bytes-minimum';
 
-process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
-process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
+process.env.YASTROYKA_DB_HOST ??= TEST_DATABASE_HOST;
+process.env.YASTROYKA_DB_PORT ??= '5432';
+process.env.YASTROYKA_DB_NAME ??= TEST_DATABASE_NAME;
+process.env.YASTROYKA_DB_USER ??= TEST_DATABASE_USER;
+
+if (
+  process.env.YASTROYKA_DB_PASSWORD === undefined &&
+  process.env.GITHUB_RUN_ID !== undefined &&
+  process.env.GITHUB_RUN_ATTEMPT !== undefined
+) {
+  process.env.YASTROYKA_DB_PASSWORD =
+    `ci-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`;
+}
+
+const HAS_DATABASE_ENVIRONMENT = [
+  'YASTROYKA_DB_HOST',
+  'YASTROYKA_DB_PORT',
+  'YASTROYKA_DB_NAME',
+  'YASTROYKA_DB_USER',
+  'YASTROYKA_DB_PASSWORD',
+].every((name) => {
+  const value = process.env[name];
+  return value !== undefined && value.length > 0;
+});
+const integrationTest = HAS_DATABASE_ENVIRONMENT ? test : test.skip;
 
 const AUTHORIZATION_POLICY = {
   version: 2 as const,
@@ -132,7 +156,7 @@ async function seedAutoPublication(
   );
 }
 
-test('TASK-020 composes the full guarded VK runtime without a real network call', async (t) => {
+integrationTest('TASK-020 composes the full guarded VK runtime without a real network call', async (t) => {
   const database = createDatabaseConnection();
   const keys = createOwnerKeys();
   const workspaces = new PostgresPlatformWorkspaceStore(database);
