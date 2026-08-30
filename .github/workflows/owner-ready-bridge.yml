@@ -1,0 +1,83 @@
+name: Owner Ready Bridge
+
+on:
+  push:
+    branches:
+      - ops/owner-gates
+    paths:
+      - .owner-gates/command.json
+
+concurrency:
+  group: owner-ready-bridge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+
+jobs:
+  ready:
+    name: Owner Ready Gate
+    if: github.actor == 'Yastroyka'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout gate branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Validate owner command and PR gates
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REPOSITORY: Yastroyka/yastroyka-ai-media-company
+          EXPECTED_ACTOR: Yastroyka
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          command_file='.owner-gates/command.json'
+          test -f "$command_file"
+
+          action="$(jq -r '.action // empty' "$command_file")"
+          repository="$(jq -r '.repository // empty' "$command_file")"
+          requested_by="$(jq -r '.requestedBy // empty' "$command_file")"
+          pr="$(jq -r '.pr // empty' "$command_file")"
+          expected_head="$(jq -r '.expectedHeadSha // empty' "$command_file")"
+
+          test "$action" = 'ready'
+          test "$repository" = "$EXPECTED_REPOSITORY"
+          test "$requested_by" = "$EXPECTED_ACTOR"
+          [[ "$pr" =~ ^[1-9][0-9]*$ ]]
+          [[ "$expected_head" =~ ^[0-9a-f]{40}$ ]]
+
+          pr_json="$(gh api "repos/$repository/pulls/$pr")"
+          test "$(jq -r '.state' <<<"$pr_json")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr_json")" = 'true'
+          test "$(jq -r '.head.sha' <<<"$pr_json")" = "$expected_head"
+          test "$(jq -r '.base.ref' <<<"$pr_json")" = 'main'
+
+          quality_json="$(gh api -H 'Accept: application/vnd.github+json' "repos/$repository/commits/$expected_head/check-runs?per_page=100")"
+          latest_quality="$(jq -c '[.check_runs[] | select(.name == "Quality")] | sort_by(.started_at) | last // empty' <<<"$quality_json")"
+          test -n "$latest_quality"
+          test "$(jq -r '.status' <<<"$latest_quality")" = 'completed'
+          test "$(jq -r '.conclusion' <<<"$latest_quality")" = 'success'
+
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
+          echo "pr_node_id=$(jq -r '.node_id' <<<"$pr_json")" >> "$GITHUB_OUTPUT"
+
+      - name: Mark exact PR ready for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NODE_ID: ${{ steps.gate.outputs.pr_node_id }}
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          result="$(gh api graphql \
+            -f query='mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft headRefOid}}}' \
+            -f id="$PR_NODE_ID")"
+
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.isDraft' <<<"$result")" = 'false'
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.headRefOid' <<<"$result")" = "$EXPECTED_HEAD"
