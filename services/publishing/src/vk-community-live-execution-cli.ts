@@ -174,16 +174,16 @@ const DEFAULT_PRODUCTION_RUNTIME_FACTORY_DEPENDENCIES: VkCommunityProductionLive
     openDatabase() {
       return createDatabaseConnection();
     },
-    createAuthorizationAuditSink(database) {
+    createAuthorizationAuditSink(database: VkCommunityProductionDatabase) {
       return createPostgresAuthorizationAuditSink(database);
     },
-    createSecretProvider(bindings) {
+    createSecretProvider(bindings: readonly EnvironmentSecretBinding[]) {
       return createEnvironmentSecretProvider({ bindings });
     },
     createTransport() {
       return new VkCommunityHttpTransport();
     },
-    createRuntime(options) {
+    createRuntime(options: VkCommunityProductionRuntimeOptions) {
       return createVkCommunityProductionRuntime(options);
     },
   });
@@ -249,22 +249,22 @@ interface VkCommunityUnknownExecutionResult {
 type VkCommunityFailedExecutionResult =
   VkCommunityBlockedExecutionResult | VkCommunityUnknownExecutionResult;
 
-const PRE_NETWORK_PUBLICATION_ERRORS = new Set([
+const PRE_NETWORK_PUBLICATION_ERRORS: ReadonlySet<string> = new Set([
   'VK_PUBLICATION_READ_FAILED',
   'VK_PUBLICATION_NOT_FOUND',
   'VK_PUBLICATION_NOT_AUTO',
   'VK_PUBLICATION_INVALID',
-] as const);
+]);
 
-const PRE_NETWORK_IDENTITY_ERRORS = new Set([
+const PRE_NETWORK_IDENTITY_ERRORS: ReadonlySet<string> = new Set([
   'VK_IDENTITY_BINDING_FAILED',
   'VK_IDENTITY_DENIED',
-] as const);
+]);
 
-const PRE_NETWORK_SECRET_ERRORS = new Set([
+const PRE_NETWORK_SECRET_ERRORS: ReadonlySet<string> = new Set([
   'VK_SECRET_REFERENCE_INVALID',
   'VK_SECRET_ACCESS_FAILED',
-] as const);
+]);
 
 function unknownExecution(): VkCommunityUnknownExecutionResult {
   return {
@@ -301,21 +301,21 @@ function classifyExecutionFailure(error: unknown): VkCommunityFailedExecutionRes
   }
 
   if (error instanceof VkCommunityPublishingError) {
-    if (PRE_NETWORK_PUBLICATION_ERRORS.has(error.code as never)) {
+    if (PRE_NETWORK_PUBLICATION_ERRORS.has(error.code)) {
       return {
         status: 'BLOCKED',
         stage: 'PUBLICATION',
         reason: error.code,
       };
     }
-    if (PRE_NETWORK_IDENTITY_ERRORS.has(error.code as never)) {
+    if (PRE_NETWORK_IDENTITY_ERRORS.has(error.code)) {
       return {
         status: 'BLOCKED',
         stage: 'IDENTITY',
         reason: error.code,
       };
     }
-    if (PRE_NETWORK_SECRET_ERRORS.has(error.code as never)) {
+    if (PRE_NETWORK_SECRET_ERRORS.has(error.code)) {
       return {
         status: 'BLOCKED',
         stage: 'SECRET',
