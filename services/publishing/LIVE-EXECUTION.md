@@ -2,7 +2,19 @@
 
 TASK-021 adds the final operator bootstrap for the accepted guarded VK Community runtime. The command is intentionally live-capable, but repository code, CI, and ordinary development workflows do not invoke the real VK transport.
 
-## Command
+## Read-only release rehearsal
+
+Before owner signing or any secret-bearing execution path, run:
+
+```text
+pnpm --filter @yastroyka/publishing vk:release-rehearsal <publication-id> <non-secret-manifest.json>
+```
+
+The rehearsal runs production preflight and reads the exact canonical `VK_COMMUNITY + AUTO` publication through the read-only PostgreSQL lease. READY output contains the exact approval packet, exact community/owner destination, the exact `--confirm-live-wall-post=<owner-id>` string required by the live operator, and only the names of the two environment variables expected by TASK-021.
+
+The rehearsal does **not** read either environment secret value, read an owner grant, construct the VK transport, make a network request, mutate publication state, or call `wall.post`.
+
+## Live command
 
 ```text
 pnpm --filter @yastroyka/publishing vk:execute-live <publication-id> <owner-grant.json> <non-secret-manifest.json> --confirm-live-wall-post=<owner-id>
@@ -12,11 +24,12 @@ pnpm --filter @yastroyka/publishing vk:execute-live <publication-id> <owner-gran
 
 ## Required operator sequence
 
-1. Produce the canonical approval packet from the exact `VK_COMMUNITY + AUTO` publication.
-2. Review the exact preview and exact destination.
-3. Sign the READY packet with the owner-side offline signer. The owner private key never enters the runtime.
-4. Optionally run `vk:verify-execution` to inspect the fresh public execution binding.
-5. Only after a separate explicit owner decision, run `vk:execute-live` with the exact destination confirmation.
+1. Independently confirm the exact production VK Community ID and build the non-secret manifest.
+2. Run `vk:release-rehearsal` and review the exact preview, fingerprint, destination, and live-confirmation string.
+3. Produce the canonical approval packet from the exact `VK_COMMUNITY + AUTO` publication if a separately stored packet is needed.
+4. Sign the READY packet with the owner-side offline signer. The owner private key never enters the runtime.
+5. Optionally run `vk:verify-execution` to inspect the fresh public execution binding.
+6. Only after a separate explicit owner decision, run `vk:execute-live` with the exact destination confirmation shown by the rehearsal.
 
 ## Secret boundary
 
@@ -37,4 +50,4 @@ Never put either secret value in the manifest, owner-grant file, command line, r
 
 ## Production activation
 
-The existence of this command is not production authorization. It must not be invoked against real VK until the exact production community ID has been independently confirmed, the non-secret manifest is correct, secrets are provisioned outside the repository, and the owner has reviewed the exact preview and destination and issued a separate explicit real-publish command.
+The existence of these commands is not production authorization. `vk:execute-live` must not be invoked against real VK until the exact production community ID has been independently confirmed, the non-secret manifest is correct, secrets are provisioned outside the repository, and the owner has reviewed the exact rehearsal/preview and destination and issued a separate explicit real-publish command.
