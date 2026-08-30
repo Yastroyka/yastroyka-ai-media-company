@@ -106,6 +106,16 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
 
+  tools/owner-signing:
+    dependencies:
+      '@yastroyka/orchestrator':
+        specifier: workspace:*
+        version: link:../../services/orchestrator
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
   workers/temporal:
     dependencies:
       '@temporalio/worker':

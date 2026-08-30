@@ -5,6 +5,7 @@ packages:
   - 'packages/*'
   - 'integrations/*'
   - 'platforms/*'
+  - 'tools/*'
 
 nodeVersion: 24.18.1
 engineStrict: true
