@@ -192,85 +192,88 @@ test('TASK-020 composes the full guarded VK runtime without a real network call'
       assert.deepEqual(secrets.accesses, []);
     });
 
-    await t.test('valid owner grant reaches fake transport and persists exact PUBLISHED evidence', async () => {
-      const secrets = new RecordingSecretProvider();
-      const transportCalls: Array<{
-        request: VkCommunityWallPostRequest;
-        accessToken: string;
-      }> = [];
-      const runtime = createVkCommunityProductionRuntime({
-        manifest: manifest(keys.publicPem),
-        database,
-        authorizationPolicy: AUTHORIZATION_POLICY,
-        authorizationAuditSink: {
-          async record() {
-            throw new Error('unexpected authorization denial');
+    await t.test(
+      'valid owner grant reaches fake transport and persists exact PUBLISHED evidence',
+      async () => {
+        const secrets = new RecordingSecretProvider();
+        const transportCalls: Array<{
+          request: VkCommunityWallPostRequest;
+          accessToken: string;
+        }> = [];
+        const runtime = createVkCommunityProductionRuntime({
+          manifest: manifest(keys.publicPem),
+          database,
+          authorizationPolicy: AUTHORIZATION_POLICY,
+          authorizationAuditSink: {
+            async record() {
+              throw new Error('unexpected authorization denial');
+            },
           },
-        },
-        secretProvider: secrets,
-        transport: {
-          async publishWallPost(request, accessToken) {
-            transportCalls.push({ request, accessToken });
-            return {
-              ownerId: request.ownerId,
-              postId: POST_ID,
-            };
+          secretProvider: secrets,
+          transport: {
+            async publishWallPost(request, accessToken) {
+              transportCalls.push({ request, accessToken });
+              return {
+                ownerId: request.ownerId,
+                postId: POST_ID,
+              };
+            },
           },
-        },
-        clock: () => NOW,
-      });
+          clock: () => NOW,
+        });
 
-      assert.deepEqual(runtime.deployment, {
-        communityId: COMMUNITY_ID,
-        ownerId: OWNER_ID,
-        ownerPublicKeyFingerprint: runtime.deployment.ownerPublicKeyFingerprint,
-      });
-
-      const approval = await runtime.prepareApproval(VALID_PUBLICATION_ID);
-      const ownerGrant = signVkCommunityOwnerGrant(
-        createVkCommunityOwnerGrantAssertion({
-          grantId: 'task-020-valid-grant',
-          publicationId: VALID_PUBLICATION_ID,
+        assert.deepEqual(runtime.deployment, {
+          communityId: COMMUNITY_ID,
           ownerId: OWNER_ID,
-          previewFingerprint: approval.previewFingerprint,
-          issuedAt: '2026-08-30T10:59:30.000Z',
-          expiresAt: '2026-08-30T11:02:00.000Z',
-        }),
-        keys.privateKey,
-      );
+          ownerPublicKeyFingerprint: runtime.deployment.ownerPublicKeyFingerprint,
+        });
 
-      const result = await runtime.execute(VALID_PUBLICATION_ID, ownerGrant);
-      assert.deepEqual(result, {
-        publicationId: VALID_PUBLICATION_ID,
-        platform: 'VK_COMMUNITY',
-        ownerId: OWNER_ID,
-        postId: POST_ID,
-        idempotencyKey: approval.preview.idempotencyKey,
-        publishedAt: NOW.toISOString(),
-      });
+        const approval = await runtime.prepareApproval(VALID_PUBLICATION_ID);
+        const ownerGrant = signVkCommunityOwnerGrant(
+          createVkCommunityOwnerGrantAssertion({
+            grantId: 'task-020-valid-grant',
+            publicationId: VALID_PUBLICATION_ID,
+            ownerId: OWNER_ID,
+            previewFingerprint: approval.previewFingerprint,
+            issuedAt: '2026-08-30T10:59:30.000Z',
+            expiresAt: '2026-08-30T11:02:00.000Z',
+          }),
+          keys.privateKey,
+        );
 
-      assert.equal(transportCalls.length, 1);
-      assert.deepEqual(transportCalls[0]?.request, {
-        ownerId: OWNER_ID,
-        fromGroup: true,
-        message: approval.preview.message,
-        idempotencyKey: approval.preview.idempotencyKey,
-      });
-      assert.equal(transportCalls[0]?.accessToken, VK_ACCESS_TOKEN);
-      assert.deepEqual(secrets.accesses, [
-        IDENTITY_SECRET_KEY,
-        IDENTITY_SECRET_KEY,
-        VK_SECRET_KEY,
-      ]);
+        const result = await runtime.execute(VALID_PUBLICATION_ID, ownerGrant);
+        assert.deepEqual(result, {
+          publicationId: VALID_PUBLICATION_ID,
+          platform: 'VK_COMMUNITY',
+          ownerId: OWNER_ID,
+          postId: POST_ID,
+          idempotencyKey: approval.preview.idempotencyKey,
+          publishedAt: NOW.toISOString(),
+        });
 
-      const publication = await workspaces.findById(VALID_PUBLICATION_ID);
-      assert.equal(publication?.status, 'PUBLISHED');
-      assert.equal(publication?.publishedAt, NOW.toISOString());
-      assert.doesNotMatch(
-        JSON.stringify(publication),
-        /task-020-fake-vk-token|task-020-identity-secret-material/iu,
-      );
-    });
+        assert.equal(transportCalls.length, 1);
+        assert.deepEqual(transportCalls[0]?.request, {
+          ownerId: OWNER_ID,
+          fromGroup: true,
+          message: approval.preview.message,
+          idempotencyKey: approval.preview.idempotencyKey,
+        });
+        assert.equal(transportCalls[0]?.accessToken, VK_ACCESS_TOKEN);
+        assert.deepEqual(secrets.accesses, [
+          IDENTITY_SECRET_KEY,
+          IDENTITY_SECRET_KEY,
+          VK_SECRET_KEY,
+        ]);
+
+        const publication = await workspaces.findById(VALID_PUBLICATION_ID);
+        assert.equal(publication?.status, 'PUBLISHED');
+        assert.equal(publication?.publishedAt, NOW.toISOString());
+        assert.doesNotMatch(
+          JSON.stringify(publication),
+          /task-020-fake-vk-token|task-020-identity-secret-material/iu,
+        );
+      },
+    );
 
     await t.test('tampered owner grant fails before any secret or transport access', async () => {
       const secrets = new RecordingSecretProvider();
@@ -313,12 +316,15 @@ test('TASK-020 composes the full guarded VK runtime without a real network call'
     });
   } finally {
     await database
-      .query(`DELETE FROM publications WHERE id IN (:validPublicationId, :tamperedPublicationId);`, {
-        replacements: {
-          validPublicationId: VALID_PUBLICATION_ID,
-          tamperedPublicationId: TAMPERED_PUBLICATION_ID,
+      .query(
+        `DELETE FROM publications WHERE id IN (:validPublicationId, :tamperedPublicationId);`,
+        {
+          replacements: {
+            validPublicationId: VALID_PUBLICATION_ID,
+            tamperedPublicationId: TAMPERED_PUBLICATION_ID,
+          },
         },
-      })
+      )
       .catch(() => {});
     await database.close().catch(() => {});
   }
