@@ -336,6 +336,7 @@ test('runtime-open failure is generic and cannot reflect internal credentials', 
 });
 
 test('production runtime factory wires fixed environment bindings without reading secret values', async () => {
+  let closeCalls = 0;
   const fakeDatabase = {
     async close() {
       closeCalls += 1;
@@ -357,12 +358,11 @@ test('production runtime factory wires fixed environment bindings without readin
       throw new Error('transport must not happen during factory construction');
     },
   };
-  let closeCalls = 0;
   let openDatabaseCalls = 0;
   let transportFactoryCalls = 0;
   let capturedBindings: readonly { readonly key: string; readonly environmentVariable: string }[] =
     [];
-  let capturedRuntimeOptions: VkCommunityProductionRuntimeOptions | null = null;
+  const capturedRuntimeOptions: VkCommunityProductionRuntimeOptions[] = [];
 
   const dependencies: VkCommunityProductionLiveRuntimeFactoryDependencies = {
     loadAuthorizationPolicy() {
@@ -384,7 +384,7 @@ test('production runtime factory wires fixed environment bindings without readin
       return fakeTransport;
     },
     createRuntime(options) {
-      capturedRuntimeOptions = options;
+      capturedRuntimeOptions.push(options);
       return {
         async execute() {
           return publishedResult();
@@ -408,12 +408,15 @@ test('production runtime factory wires fixed environment bindings without readin
       environmentVariable: VK_COMMUNITY_PUBLISHING_IDENTITY_ENVIRONMENT_VARIABLE,
     },
   ]);
-  assert.equal(capturedRuntimeOptions?.manifest, manifest);
-  assert.equal(capturedRuntimeOptions?.database, fakeDatabase);
-  assert.equal(capturedRuntimeOptions?.authorizationPolicy, fakePolicy);
-  assert.equal(capturedRuntimeOptions?.authorizationAuditSink, fakeAuditSink);
-  assert.equal(capturedRuntimeOptions?.secretProvider, fakeSecretProvider);
-  assert.equal(capturedRuntimeOptions?.transport, fakeTransport);
+  assert.equal(capturedRuntimeOptions.length, 1);
+  const runtimeOptions = capturedRuntimeOptions[0];
+  assert.ok(runtimeOptions !== undefined);
+  assert.equal(runtimeOptions.manifest, manifest);
+  assert.equal(runtimeOptions.database, fakeDatabase);
+  assert.equal(runtimeOptions.authorizationPolicy, fakePolicy);
+  assert.equal(runtimeOptions.authorizationAuditSink, fakeAuditSink);
+  assert.equal(runtimeOptions.secretProvider, fakeSecretProvider);
+  assert.equal(runtimeOptions.transport, fakeTransport);
 
   await lease.close();
   await lease.close();
