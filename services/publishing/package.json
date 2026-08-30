@@ -17,7 +17,6 @@
     "vk:verify-execution": "node src/vk-community-execution-verifier-cli.ts verify-execution"
   },
   "dependencies": {
-    "@yastroyka/auth": "workspace:*",
     "@yastroyka/db": "workspace:*",
     "@yastroyka/orchestrator": "workspace:*"
   },
