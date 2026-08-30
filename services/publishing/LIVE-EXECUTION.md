@@ -2,6 +2,18 @@
 
 TASK-021 adds the final operator bootstrap for the accepted guarded VK Community runtime. The command is intentionally live-capable, but repository code, CI, and ordinary development workflows do not invoke the real VK transport.
 
+## Read-only destination resolution
+
+When the owner has confirmed the public VK Community URL but the numeric community ID is not yet known, run:
+
+```text
+pnpm --filter @yastroyka/publishing vk:resolve-community <https://vk.ru/screen-name>
+```
+
+The resolver accepts only HTTPS `vk.ru` / `vk.com` community URLs with one validated screen-name segment. It calls the official VK `utils.resolveScreenName` method using `YASTROYKA_VK_COMMUNITY_ACCESS_TOKEN` through the existing environment Secret Provider and accepts only VK `group` or `page` object types.
+
+Successful output contains only the public binding: supplied/canonical URL, screen name, object type, positive `communityId`, and negative `ownerId`. It does not touch PostgreSQL, owner grants, publishing identity, publication state, or `wall.post`. The VK token value is never printed.
+
 ## Read-only release rehearsal
 
 Before owner signing or any secret-bearing execution path, run:
@@ -24,18 +36,20 @@ pnpm --filter @yastroyka/publishing vk:execute-live <publication-id> <owner-gran
 
 ## Required operator sequence
 
-1. Independently confirm the exact production VK Community ID and build the non-secret manifest.
-2. Run `vk:release-rehearsal` and review the exact preview, fingerprint, destination, and live-confirmation string.
-3. Produce the canonical approval packet from the exact `VK_COMMUNITY + AUTO` publication if a separately stored packet is needed.
-4. Sign the READY packet with the owner-side offline signer. The owner private key never enters the runtime.
-5. Optionally run `vk:verify-execution` to inspect the fresh public execution binding.
-6. Only after a separate explicit owner decision, run `vk:execute-live` with the exact destination confirmation shown by the rehearsal.
+1. Confirm the exact public VK Community URL.
+2. If the numeric ID is not already independently known, run `vk:resolve-community` to obtain the exact positive `communityId` and negative `ownerId`.
+3. Build the non-secret production manifest with that exact `communityId` and the configured public owner-approval key/secret references.
+4. Run `vk:release-rehearsal` and review the exact preview, fingerprint, destination, and live-confirmation string.
+5. Produce the canonical approval packet from the exact `VK_COMMUNITY + AUTO` publication if a separately stored packet is needed.
+6. Sign the READY packet with the owner-side offline signer. The owner private key never enters the runtime.
+7. Optionally run `vk:verify-execution` to inspect the fresh public execution binding.
+8. Only after a separate explicit owner decision, run `vk:execute-live` with the exact destination confirmation shown by the rehearsal.
 
 ## Secret boundary
 
-The non-secret manifest contains references only. The live operator uses the existing environment-backed Secret Provider with fixed bindings:
+The destination resolver and live operator use the environment-backed Secret Provider. The runtime expects:
 
-- `YASTROYKA_VK_COMMUNITY_ACCESS_TOKEN` for the manifest's `publishing/vk-community/...` reference;
+- `YASTROYKA_VK_COMMUNITY_ACCESS_TOKEN` for VK API access;
 - `YASTROYKA_VK_COMMUNITY_PUBLISHING_IDENTITY_SECRET` for the manifest's `publishing/identity/vk-community/...` reference.
 
 Never put either secret value in the manifest, owner-grant file, command line, repository, logs, screenshots, issue/PR text, or chat.
@@ -50,4 +64,4 @@ Never put either secret value in the manifest, owner-grant file, command line, r
 
 ## Production activation
 
-The existence of these commands is not production authorization. `vk:execute-live` must not be invoked against real VK until the exact production community ID has been independently confirmed, the non-secret manifest is correct, secrets are provisioned outside the repository, and the owner has reviewed the exact rehearsal/preview and destination and issued a separate explicit real-publish command.
+The existence of these commands is not production authorization. `vk:execute-live` must not be invoked against real VK until the exact production community ID has been resolved/independently confirmed, the non-secret manifest is correct, secrets are provisioned outside the repository, and the owner has reviewed the exact rehearsal/preview and destination and issued a separate explicit real-publish command.
