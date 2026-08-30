@@ -1,0 +1,66 @@
+name: TASK-021 Maintenance
+
+on:
+  push:
+    branches:
+      - feat/task-021-vk-live-execution-cli
+
+permissions:
+  contents: write
+
+concurrency:
+  group: task-021-maintenance
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    if: github.actor == 'Yastroyka'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/task-021-vk-live-execution-cli
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.20.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Generate lockfile and format TASK-021 files
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm exec prettier --write \
+            .ai/tasks/TASK-021-vk-community-live-execution-operator.md \
+            services/publishing/LIVE-EXECUTION.md \
+            services/publishing/package.json \
+            services/publishing/src/vk-community-live-execution-cli.ts \
+            services/publishing/tests/vk-community-live-execution-cli.test.ts
+
+      - name: Commit generated feature-branch changes
+        run: |
+          git add \
+            pnpm-lock.yaml \
+            .ai/tasks/TASK-021-vk-community-live-execution-operator.md \
+            services/publishing/LIVE-EXECUTION.md \
+            services/publishing/package.json \
+            services/publishing/src/vk-community-live-execution-cli.ts \
+            services/publishing/tests/vk-community-live-execution-cli.test.ts
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name Yastroyka
+          git config user.email mhitryakov@gmail.com
+          git commit -m "chore: normalize TASK-021 generated files"
+          git push origin HEAD:feat/task-021-vk-live-execution-cli
