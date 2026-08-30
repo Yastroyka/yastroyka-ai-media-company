@@ -12,3 +12,13 @@ export {
   type VkCommunityExecutionVerifierExitCode,
   type VkCommunityExecutionVerifierIo,
 } from './vk-community-execution-verifier-cli.ts';
+
+export {
+  VkCommunityProductionRuntime,
+  VkCommunityProductionRuntimeError,
+  createVkCommunityProductionRuntime,
+  type VkCommunityProductionDatabase,
+  type VkCommunityProductionDeploymentBinding,
+  type VkCommunityProductionRuntimeErrorCode,
+  type VkCommunityProductionRuntimeOptions,
+} from './vk-community-production-runtime.ts';
