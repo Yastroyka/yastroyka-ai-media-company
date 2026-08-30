@@ -9,40 +9,43 @@ import {
 
 const ACCESS_TOKEN = 'vk-test-token-must-never-leak';
 
-test('resolver posts screen name and token to official VK endpoint and returns group binding', async () => {
-  let requestBody = '';
-  const resolver = new VkCommunityScreenNameResolver({
-    async fetchImplementation(input, init) {
-      assert.equal(String(input), VK_RESOLVE_SCREEN_NAME_ENDPOINT);
-      assert.equal(init?.method, 'POST');
-      assert.equal(init?.redirect, 'error');
-      requestBody = String(init?.body);
-      return new Response(
-        JSON.stringify({
-          response: {
-            type: 'group',
-            object_id: 123456,
-          },
-        }),
-        { status: 200 },
-      );
-    },
-  });
+test(
+  'resolver posts screen name and token to official VK endpoint and returns group binding',
+  async () => {
+    let requestBody = '';
+    const resolver = new VkCommunityScreenNameResolver({
+      async fetchImplementation(input, init) {
+        assert.equal(String(input), VK_RESOLVE_SCREEN_NAME_ENDPOINT);
+        assert.equal(init?.method, 'POST');
+        assert.equal(init?.redirect, 'error');
+        requestBody = String(init?.body);
+        return new Response(
+          JSON.stringify({
+            response: {
+              type: 'group',
+              object_id: 123456,
+            },
+          }),
+          { status: 200 },
+        );
+      },
+    });
 
-  const result = await resolver.resolve('yastroykaru', ACCESS_TOKEN);
+    const result = await resolver.resolve('yastroykaru', ACCESS_TOKEN);
 
-  assert.deepEqual(result, {
-    screenName: 'yastroykaru',
-    objectType: 'group',
-    communityId: 123456,
-    ownerId: -123456,
-  });
+    assert.deepEqual(result, {
+      screenName: 'yastroykaru',
+      objectType: 'group',
+      communityId: 123456,
+      ownerId: -123456,
+    });
 
-  const body = new URLSearchParams(requestBody);
-  assert.equal(body.get('screen_name'), 'yastroykaru');
-  assert.equal(body.get('access_token'), ACCESS_TOKEN);
-  assert.equal(body.get('v'), '5.199');
-});
+    const body = new URLSearchParams(requestBody);
+    assert.equal(body.get('screen_name'), 'yastroykaru');
+    assert.equal(body.get('access_token'), ACCESS_TOKEN);
+    assert.equal(body.get('v'), '5.199');
+  },
+);
 
 test('resolver accepts public-page community type', async () => {
   const resolver = new VkCommunityScreenNameResolver({
