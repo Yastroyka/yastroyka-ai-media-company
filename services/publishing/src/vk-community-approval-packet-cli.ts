@@ -8,16 +8,16 @@ import {
   VkCommunityPublishingError,
   parseVkCommunityOperatorManifest,
   preflightVkCommunityProductionActivation,
-  type VkCommunityPublicationStatePort,
 } from '@yastroyka/orchestrator';
-import { PostgresPlatformWorkspaceStore, createReadOnlyDatabaseConnection } from '@yastroyka/db';
+
+import {
+  openPostgresVkCommunityReadOnlyState,
+  type VkCommunityReadOnlyPublicationStateLease,
+} from './vk-community-read-only-state.ts';
 
 export type VkCommunityApprovalPacketOperatorExitCode = 0 | 2 | 64 | 65 | 70;
 
-export interface VkCommunityApprovalPacketStateLease {
-  readonly publicationState: VkCommunityPublicationStatePort;
-  readonly close: () => Promise<void>;
-}
+export type VkCommunityApprovalPacketStateLease = VkCommunityReadOnlyPublicationStateLease;
 
 export interface VkCommunityApprovalPacketOperatorDependencies {
   readonly readTextFile: (path: string) => Promise<string>;
@@ -148,27 +148,6 @@ export async function runVkCommunityApprovalPacketOperator(
   return result.status === 'READY' ? 0 : 2;
 }
 
-async function openPostgresPublicationState(): Promise<VkCommunityApprovalPacketStateLease> {
-  const database = createReadOnlyDatabaseConnection();
-
-  try {
-    await database.authenticate();
-    return {
-      publicationState: new PostgresPlatformWorkspaceStore(database),
-      async close() {
-        await database.close();
-      },
-    };
-  } catch {
-    try {
-      await database.close();
-    } catch {
-      // Keep connection failures sanitized.
-    }
-    throw new Error('VK approval packet PostgreSQL state unavailable');
-  }
-}
-
 async function main(): Promise<void> {
   const exitCode = await runVkCommunityApprovalPacketOperator(
     process.argv.slice(2),
@@ -176,7 +155,7 @@ async function main(): Promise<void> {
       async readTextFile(path) {
         return await readFile(path, 'utf8');
       },
-      openPublicationState: openPostgresPublicationState,
+      openPublicationState: openPostgresVkCommunityReadOnlyState,
     },
     {
       writeStdout(text) {
