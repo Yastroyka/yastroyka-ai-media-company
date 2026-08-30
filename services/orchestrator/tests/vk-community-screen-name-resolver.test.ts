@@ -101,7 +101,8 @@ test('resolver rejects malformed input before network access', async () => {
     },
   });
 
-  await assert.rejects(resolver.resolve('https://vk.ru/yastroykaru', ACCESS_TOKEN),
+  await assert.rejects(
+    resolver.resolve('https://vk.ru/yastroykaru', ACCESS_TOKEN),
     VkCommunityScreenNameResolverError,
   );
   assert.equal(fetchCalls, 0);
