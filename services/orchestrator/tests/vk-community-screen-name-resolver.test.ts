@@ -70,30 +70,33 @@ test('resolver accepts public-page community type', async () => {
   });
 });
 
-test('resolver rejects non-community objects without reflecting secret material', async () => {
-  const resolver = new VkCommunityScreenNameResolver({
-    async fetchImplementation() {
-      return new Response(
-        JSON.stringify({
-          response: {
-            type: 'user',
-            object_id: 1,
-          },
-        }),
-        { status: 200 },
-      );
-    },
-  });
+test(
+  'resolver rejects non-community objects without reflecting secret material',
+  async () => {
+    const resolver = new VkCommunityScreenNameResolver({
+      async fetchImplementation() {
+        return new Response(
+          JSON.stringify({
+            response: {
+              type: 'user',
+              object_id: 1,
+            },
+          }),
+          { status: 200 },
+        );
+      },
+    });
 
-  await assert.rejects(
-    resolver.resolve('yastroykaru', ACCESS_TOKEN),
-    (error: unknown) => {
-      assert.ok(error instanceof VkCommunityScreenNameResolverError);
-      assert.doesNotMatch(error.message, new RegExp(ACCESS_TOKEN, 'u'));
-      return true;
-    },
-  );
-});
+    await assert.rejects(
+      resolver.resolve('yastroykaru', ACCESS_TOKEN),
+      (error: unknown) => {
+        assert.ok(error instanceof VkCommunityScreenNameResolverError);
+        assert.doesNotMatch(error.message, new RegExp(ACCESS_TOKEN, 'u'));
+        return true;
+      },
+    );
+  },
+);
 
 test('resolver rejects malformed input before network access', async () => {
   let fetchCalls = 0;
@@ -111,27 +114,30 @@ test('resolver rejects malformed input before network access', async () => {
   assert.equal(fetchCalls, 0);
 });
 
-test('VK API and transport failures collapse to generic resolver error', async () => {
-  const resolver = new VkCommunityScreenNameResolver({
-    async fetchImplementation() {
-      return new Response(
-        JSON.stringify({
-          error: {
-            error_msg: `credential=${ACCESS_TOKEN}`,
-          },
-        }),
-        { status: 200 },
-      );
-    },
-  });
+test(
+  'VK API and transport failures collapse to generic resolver error',
+  async () => {
+    const resolver = new VkCommunityScreenNameResolver({
+      async fetchImplementation() {
+        return new Response(
+          JSON.stringify({
+            error: {
+              error_msg: `credential=${ACCESS_TOKEN}`,
+            },
+          }),
+          { status: 200 },
+        );
+      },
+    });
 
-  await assert.rejects(
-    resolver.resolve('yastroykaru', ACCESS_TOKEN),
-    (error: unknown) => {
-      assert.ok(error instanceof VkCommunityScreenNameResolverError);
-      assert.equal(error.message, 'VK community screen-name resolution failed');
-      assert.doesNotMatch(error.message, new RegExp(ACCESS_TOKEN, 'u'));
-      return true;
-    },
-  );
-});
+    await assert.rejects(
+      resolver.resolve('yastroykaru', ACCESS_TOKEN),
+      (error: unknown) => {
+        assert.ok(error instanceof VkCommunityScreenNameResolverError);
+        assert.equal(error.message, 'VK community screen-name resolution failed');
+        assert.doesNotMatch(error.message, new RegExp(ACCESS_TOKEN, 'u'));
+        return true;
+      },
+    );
+  },
+);
