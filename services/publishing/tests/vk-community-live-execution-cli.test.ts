@@ -37,7 +37,9 @@ const PUBLISHED_AT = '2026-08-30T13:30:00.000Z';
 const { publicKey } = generateKeyPairSync('ed25519');
 const OWNER_PUBLIC_KEY = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
-function manifestValue(options: { readonly communityId?: number; readonly provider?: string } = {}) {
+function manifestValue(
+  options: { readonly communityId?: number; readonly provider?: string } = {},
+) {
   return {
     communityId: options.communityId ?? COMMUNITY_ID,
     ownerApprovalPublicKey: OWNER_PUBLIC_KEY,
@@ -339,7 +341,9 @@ test('production runtime factory wires fixed environment bindings without readin
       closeCalls += 1;
     },
   } as unknown as VkCommunityProductionDatabase;
-  const fakePolicy = Object.freeze({}) as VkCommunityProductionRuntimeOptions['authorizationPolicy'];
+  const fakePolicy = Object.freeze(
+    {},
+  ) as VkCommunityProductionRuntimeOptions['authorizationPolicy'];
   const fakeAuditSink: VkCommunityProductionRuntimeOptions['authorizationAuditSink'] = {
     async record() {},
   };
@@ -356,7 +360,8 @@ test('production runtime factory wires fixed environment bindings without readin
   let closeCalls = 0;
   let openDatabaseCalls = 0;
   let transportFactoryCalls = 0;
-  let capturedBindings: readonly { readonly key: string; readonly environmentVariable: string }[] = [];
+  let capturedBindings: readonly { readonly key: string; readonly environmentVariable: string }[] =
+    [];
   let capturedRuntimeOptions: VkCommunityProductionRuntimeOptions | null = null;
 
   const dependencies: VkCommunityProductionLiveRuntimeFactoryDependencies = {

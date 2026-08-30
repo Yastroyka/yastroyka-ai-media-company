@@ -7,10 +7,7 @@ import {
   loadPolicyContract,
   type EnvironmentSecretBinding,
 } from '@yastroyka/auth';
-import {
-  createDatabaseConnection,
-  createPostgresAuthorizationAuditSink,
-} from '@yastroyka/db';
+import { createDatabaseConnection, createPostgresAuthorizationAuditSink } from '@yastroyka/db';
 import {
   VkCommunityHttpTransport,
   VkCommunityPublishingError,
@@ -70,7 +67,9 @@ export interface VkCommunityProductionLiveRuntimeFactoryDependencies {
     bindings: readonly EnvironmentSecretBinding[],
   ) => VkCommunitySecretProviderPort;
   readonly createTransport: () => VkCommunityPublishTransport;
-  readonly createRuntime: (options: VkCommunityProductionRuntimeOptions) => VkCommunityLiveRuntimePort;
+  readonly createRuntime: (
+    options: VkCommunityProductionRuntimeOptions,
+  ) => VkCommunityLiveRuntimePort;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
@@ -191,8 +190,7 @@ const DEFAULT_PRODUCTION_RUNTIME_FACTORY_DEPENDENCIES: VkCommunityProductionLive
 
 export async function openVkCommunityProductionLiveRuntime(
   manifest: VkCommunityProductionPreflightInput,
-  dependencies: VkCommunityProductionLiveRuntimeFactoryDependencies =
-    DEFAULT_PRODUCTION_RUNTIME_FACTORY_DEPENDENCIES,
+  dependencies: VkCommunityProductionLiveRuntimeFactoryDependencies = DEFAULT_PRODUCTION_RUNTIME_FACTORY_DEPENDENCIES,
 ): Promise<VkCommunityLiveRuntimeLease> {
   const preflight = preflightVkCommunityProductionActivation(manifest);
   if (preflight.status !== 'READY') {
@@ -249,8 +247,7 @@ interface VkCommunityUnknownExecutionResult {
 }
 
 type VkCommunityFailedExecutionResult =
-  | VkCommunityBlockedExecutionResult
-  | VkCommunityUnknownExecutionResult;
+  VkCommunityBlockedExecutionResult | VkCommunityUnknownExecutionResult;
 
 const PRE_NETWORK_PUBLICATION_ERRORS = new Set([
   'VK_PUBLICATION_READ_FAILED',
