@@ -23,7 +23,7 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -100,6 +100,15 @@ jobs:
 
       - name: Run Commerce Content Bridge tests
         run: pnpm --filter @yastroyka/commerce-bridge run test
+
+      - name: Typecheck Control Room
+        run: pnpm --filter @yastroyka/control-room run typecheck
+
+      - name: Run Control Room contract tests
+        run: pnpm --filter @yastroyka/control-room run test
+
+      - name: Build Control Room
+        run: pnpm --filter @yastroyka/control-room run build
 
       - name: Typecheck publishing service
         run: pnpm --filter @yastroyka/publishing run typecheck
