@@ -1,0 +1,28 @@
+{
+  "name": "@yastroyka/control-room",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "pnpm": "11.20.0"
+  },
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0",
+    "build": "nuxt build",
+    "typecheck": "nuxt typecheck",
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@nuxt/ui": "4.11.0",
+    "nuxt": "4.5.2",
+    "vue": "3.5.42",
+    "vue-router": "5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vue-tsc": "3.3.11"
+  }
+}
