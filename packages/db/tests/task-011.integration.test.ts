@@ -248,7 +248,7 @@ test('TASK-011 queries the tracked publication-to-order-line path without causal
     ]);
 
     await cleanup(database);
-    await migrator.down({ to: '0004-engineering-run-evidence' });
+    await migrator.down({ to: '0005-analytics-attribution' });
     const [tableRowsAfterDown] = await database.query(
       `SELECT to_regclass('public.analytics_attributions') AS attribution_table;`,
     );
