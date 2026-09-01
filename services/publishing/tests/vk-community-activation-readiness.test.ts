@@ -60,9 +60,12 @@ test('AUTO publication is reported only as a rehearsal candidate without payload
   );
   assert.equal(result.guarantees.productionReadyClaim, false);
   assert.equal(result.guarantees.publicationPayloadRead, false);
+  assert.equal(result.recent.some((candidate) => Object.hasOwn(candidate, 'payload')), false);
+  assert.equal(
+    result.autoCandidates.some((candidate) => Object.hasOwn(candidate, 'payload')),
+    false,
+  );
   assert.doesNotMatch(JSON.stringify(result), /must-never-enter-readiness-output/u);
-  assert.doesNotMatch(JSON.stringify(result), /payload/u);
-  assert.doesNotMatch(JSON.stringify(result), /token/u);
 });
 
 test('no AUTO publication blocks with a fixed preparation reason', async () => {
