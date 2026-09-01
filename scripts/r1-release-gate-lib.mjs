@@ -3,6 +3,14 @@ import { spawnSync } from 'node:child_process';
 const IDENTIFIER_PATTERN = /^[A-Z][A-Z0-9_]{1,63}$/u;
 const ALLOWED_EXECUTABLES = new Set(['node', 'pnpm']);
 const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
+const POSTGRES_GATE_ID = 'POSTGRES_CANONICAL_STATE';
+const POSTGRES_ENV_KEYS = [
+  'YASTROYKA_DB_HOST',
+  'YASTROYKA_DB_PORT',
+  'YASTROYKA_DB_NAME',
+  'YASTROYKA_DB_USER',
+  'YASTROYKA_DB_PASSWORD',
+];
 
 function requireRecord(value, field) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -115,6 +123,18 @@ function resolveExecutable(executable) {
   return executable;
 }
 
+export function scopeReleaseGateEnvironment(env, gateId) {
+  const scopedEnv = { ...env };
+
+  if (gateId !== POSTGRES_GATE_ID) {
+    for (const key of POSTGRES_ENV_KEYS) {
+      delete scopedEnv[key];
+    }
+  }
+
+  return scopedEnv;
+}
+
 export function executeReleaseGateCommand(command, { env = process.env } = {}) {
   const [executable, ...args] = command.argv;
   const result = spawnSync(resolveExecutable(executable), args, {
@@ -155,6 +175,7 @@ export function runReleaseGate(
   for (const gate of manifest.hardGates) {
     let gateFailed = false;
     const commandEvidence = [];
+    const gateEnv = scopeReleaseGateEnvironment(env, gate.id);
 
     for (const command of gate.commands) {
       if (gateFailed) {
@@ -172,7 +193,7 @@ export function runReleaseGate(
       const startedAt = now();
       let result;
       try {
-        result = execute(command, { env });
+        result = execute(command, { env: gateEnv });
       } catch {
         result = { exitCode: 1, errorCode: 'EXECUTOR_ERROR' };
       }
