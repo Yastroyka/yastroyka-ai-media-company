@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "release": "R1",
+  "hardGates": [
+    {
+      "id": "RELEASE_GATE_SELF_TEST",
+      "title": "Release gate engine validates fail-closed behavior",
+      "authority": ["AGENT_EXECUTION_CONTRACT:7", "TASK-012:ACCEPTANCE"],
+      "commands": [
+        {
+          "id": "SELF_TEST",
+          "label": "Release gate self-tests",
+          "argv": ["node", "--test", "scripts/r1-release-gate.test.mjs"]
+        }
+      ]
+    },
+    {
+      "id": "REPOSITORY_QUALITY",
+      "title": "Repository quality and policy checks pass",
+      "authority": ["AGENTS:10", "ENGINEERING_RULES:13"],
+      "commands": [
+        {
+          "id": "QUALITY_CHECK",
+          "label": "Repository quality check",
+          "argv": ["pnpm", "run", "quality:check"]
+        }
+      ]
+    },
+    {
+      "id": "AUTHZ_HUMAN_CONTROL",
+      "title": "Authorization and human-control boundaries pass",
+      "authority": ["CONTROL-01", "SECURITY-01", "AGENT_EXECUTION_CONTRACT:5"],
+      "commands": [
+        {
+          "id": "AUTHZ_TYPECHECK",
+          "label": "Authorization typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/auth", "run", "typecheck"]
+        },
+        {
+          "id": "AUTHZ_TESTS",
+          "label": "Authorization tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/auth", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRATOR_GOVERNANCE",
+      "title": "Owned orchestration and approval lifecycle pass",
+      "authority": ["OWN-02", "AGENT-01", "CONTROL-01"],
+      "commands": [
+        {
+          "id": "ORCHESTRATOR_TYPECHECK",
+          "label": "Orchestrator typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/orchestrator", "run", "typecheck"]
+        },
+        {
+          "id": "ORCHESTRATOR_TESTS",
+          "label": "Orchestrator tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/orchestrator", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "MODEL_EXCHANGE_ROUTING",
+      "title": "Model Exchange routing remains owned and fail-closed",
+      "authority": ["OWN-02", "AGENT-01"],
+      "commands": [
+        {
+          "id": "MODEL_EXCHANGE_TYPECHECK",
+          "label": "Model Exchange typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/model-exchange", "run", "typecheck"]
+        },
+        {
+          "id": "MODEL_EXCHANGE_TESTS",
+          "label": "Model Exchange tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/model-exchange", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "TEMPORAL_DURABILITY",
+      "title": "Durable business workflow acceptance passes",
+      "authority": ["FLOW-01"],
+      "commands": [
+        {
+          "id": "TEMPORAL_TYPECHECK",
+          "label": "Temporal workflow typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/temporal-workflows", "run", "typecheck"]
+        },
+        {
+          "id": "TEMPORAL_TESTS",
+          "label": "Temporal workflow tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/temporal-workflows", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "COMMERCE_READ_ONLY",
+      "title": "Commerce data boundaries and read-only bridge pass",
+      "authority": ["COMMERCE-01", "COMMERCE-02"],
+      "commands": [
+        {
+          "id": "COMMERCE_SDK_TYPECHECK",
+          "label": "Commerce SDK typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/commerce-sdk", "run", "typecheck"]
+        },
+        {
+          "id": "COMMERCE_SDK_TESTS",
+          "label": "Commerce SDK tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/commerce-sdk", "run", "test"]
+        },
+        {
+          "id": "COMMERCE_BRIDGE_TYPECHECK",
+          "label": "Commerce Content Bridge typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/commerce-bridge", "run", "typecheck"]
+        },
+        {
+          "id": "COMMERCE_BRIDGE_TESTS",
+          "label": "Commerce Content Bridge tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/commerce-bridge", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "CONTROL_ROOM_CONTRACT",
+      "title": "Control Room owned-backend shell passes",
+      "authority": ["UI-01", "OWN-01"],
+      "commands": [
+        {
+          "id": "CONTROL_ROOM_TYPECHECK",
+          "label": "Control Room typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/control-room", "run", "typecheck"]
+        },
+        {
+          "id": "CONTROL_ROOM_TESTS",
+          "label": "Control Room contract tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/control-room", "run", "test"]
+        },
+        {
+          "id": "CONTROL_ROOM_BUILD",
+          "label": "Control Room production build",
+          "argv": ["pnpm", "--filter", "@yastroyka/control-room", "run", "build"]
+        }
+      ]
+    },
+    {
+      "id": "PUBLISHING_OWNER_CONTROL",
+      "title": "Publishing and owner-signing gates pass",
+      "authority": ["CONTROL-01", "SECURITY-01"],
+      "commands": [
+        {
+          "id": "PUBLISHING_TYPECHECK",
+          "label": "Publishing service typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/publishing", "run", "typecheck"]
+        },
+        {
+          "id": "PUBLISHING_TESTS",
+          "label": "Publishing service tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/publishing", "run", "test"]
+        },
+        {
+          "id": "OWNER_SIGNING_TYPECHECK",
+          "label": "Owner signing typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/owner-signing", "run", "typecheck"]
+        },
+        {
+          "id": "OWNER_SIGNING_TESTS",
+          "label": "Owner signing tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/owner-signing", "run", "test"]
+        }
+      ]
+    },
+    {
+      "id": "POSTGRES_CANONICAL_STATE",
+      "title": "Canonical PostgreSQL R1 acceptance passes",
+      "authority": ["DATA-01", "DATA-03", "OWN-01"],
+      "commands": [
+        {
+          "id": "DB_TYPECHECK",
+          "label": "Database package typecheck",
+          "argv": ["pnpm", "--filter", "@yastroyka/db", "run", "typecheck"]
+        },
+        {
+          "id": "DB_INTEGRATION",
+          "label": "Canonical PostgreSQL integration tests",
+          "argv": ["pnpm", "--filter", "@yastroyka/db", "run", "test:integration"]
+        }
+      ]
+    }
+  ]
+}
