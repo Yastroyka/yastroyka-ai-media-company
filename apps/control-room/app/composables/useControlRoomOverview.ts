@@ -1,7 +1,7 @@
 import {
   createUnavailableControlRoomOverview,
   type ControlRoomOverviewEnvelope,
-} from '../../shared/control-room-contract';
+} from '#shared/control-room-contract';
 
 export function useControlRoomOverview() {
   return useAsyncData<ControlRoomOverviewEnvelope>(
