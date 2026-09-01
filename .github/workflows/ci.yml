@@ -62,15 +62,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TASK-024 Prettier output probe
-        run: |
-          echo '--- TASK-024 DB TEST PRETTIER BEGIN ---'
-          pnpm exec prettier packages/db/tests/task-024.integration.test.ts
-          echo '--- TASK-024 DB TEST PRETTIER END ---'
-          echo '--- TASK-024 PUBLISHING TEST PRETTIER BEGIN ---'
-          pnpm exec prettier services/publishing/tests/vk-community-activation-readiness.test.ts
-          echo '--- TASK-024 PUBLISHING TEST PRETTIER END ---'
-
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
