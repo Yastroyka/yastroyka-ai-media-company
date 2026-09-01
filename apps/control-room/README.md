@@ -19,16 +19,14 @@ sanitized `UNAVAILABLE` state and no operational count is invented.
 pnpm --filter @yastroyka/control-room dev
 ```
 
-The approved development origin is:
-
-```text
-https://dev.yastroyka.online
-```
+No development domain is assigned to the AI factory by this task. In particular,
+`dev.yastroyka.online` belongs to development of the main YASTROYKA project and is
+outside the Control Room / AI factory infrastructure boundary.
 
 Runtime configuration:
 
 - `NUXT_CONTROL_ROOM_API_BASE_URL` — server-only base URL for the owned read API;
-- `NUXT_PUBLIC_CONTROL_ROOM_ORIGIN` — non-secret public environment label/origin.
+- `NUXT_PUBLIC_CONTROL_ROOM_ORIGIN` — optional non-secret public environment label/origin, set explicitly by the target environment.
 
 Only HTTPS upstream URLs are accepted, except loopback HTTP for local
 development. Credentials must never be embedded in the URL.
