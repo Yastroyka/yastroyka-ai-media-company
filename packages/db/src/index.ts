@@ -64,6 +64,21 @@ export {
 } from './postgres-publishing-store.ts';
 
 export {
+  ANALYTICS_ATTRIBUTION_MODEL,
+  ANALYTICS_CAUSALITY,
+  AnalyticsAttributionConflictError,
+  AnalyticsAttributionNotFoundError,
+  PostgresAnalyticsAttributionStore,
+  createPostgresAnalyticsAttributionStore,
+  type AnalyticsAttributionAssignment,
+  type AnalyticsAttributionPath,
+  type AnalyticsPublicationAttributionReport,
+  type CreateAnalyticsSessionInput,
+  type RecordAnalyticsClickInput,
+  type RecordAnalyticsOrderLineInput,
+} from './postgres-analytics-attribution-store.ts';
+
+export {
   PostgresVkCommunityResultStore,
   VkCommunityResultStateConflictError,
   createPostgresVkCommunityResultStore,

@@ -117,6 +117,7 @@ test('TASK-002 canonical DB + transactional outbox', async (t) => {
           '0002-authorization-audit-events',
           '0003-model-exchange-core',
           '0004-engineering-run-evidence',
+          '0005-analytics-attribution',
         ],
       );
     });
