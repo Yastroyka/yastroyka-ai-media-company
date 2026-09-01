@@ -16,9 +16,21 @@ function makeManifest() {
         title: 'First hard gate',
         authority: ['CONTROL-01'],
         commands: [
-          { id: 'COMMAND_ONE', label: 'First command', argv: ['node', '--version'] },
-          { id: 'COMMAND_TWO', label: 'Second command', argv: ['pnpm', '--version'] },
-          { id: 'COMMAND_THREE', label: 'Third command', argv: ['node', '--version'] },
+          {
+            id: 'COMMAND_ONE',
+            label: 'First command',
+            argv: ['node', '--version'],
+          },
+          {
+            id: 'COMMAND_TWO',
+            label: 'Second command',
+            argv: ['pnpm', '--version'],
+          },
+          {
+            id: 'COMMAND_THREE',
+            label: 'Third command',
+            argv: ['node', '--version'],
+          },
         ],
       },
       {
@@ -26,7 +38,11 @@ function makeManifest() {
         title: 'Second hard gate',
         authority: ['DATA-01'],
         commands: [
-          { id: 'COMMAND_FOUR', label: 'Fourth command', argv: ['node', '--version'] },
+          {
+            id: 'COMMAND_FOUR',
+            label: 'Fourth command',
+            argv: ['node', '--version'],
+          },
         ],
       },
     ],
@@ -51,11 +67,17 @@ test('manifest validation is exact, unique and shell-free', () => {
 
   const unsafeExecutable = makeManifest();
   unsafeExecutable.hardGates[0].commands[0].argv = ['bash', '-c', 'exit 0'];
-  assert.throws(() => validateReleaseGateManifest(unsafeExecutable), /unapproved executable/u);
+  assert.throws(
+    () => validateReleaseGateManifest(unsafeExecutable),
+    /unapproved executable/u,
+  );
 
   const unknownField = makeManifest();
   unknownField.hardGates[0].extra = true;
-  assert.throws(() => validateReleaseGateManifest(unknownField), /unexpected or missing keys/u);
+  assert.throws(
+    () => validateReleaseGateManifest(unknownField),
+    /unexpected or missing keys/u,
+  );
 });
 
 test('all passing hard gates emit PASS evidence bound to the revision', () => {
@@ -75,19 +97,28 @@ test('all passing hard gates emit PASS evidence bound to the revision', () => {
     evidence.gates.map((gate) => gate.status),
     ['PASS', 'PASS'],
   );
-  assert.deepEqual(executed, ['COMMAND_ONE', 'COMMAND_TWO', 'COMMAND_THREE', 'COMMAND_FOUR']);
+  assert.deepEqual(executed, [
+    'COMMAND_ONE',
+    'COMMAND_TWO',
+    'COMMAND_THREE',
+    'COMMAND_FOUR',
+  ]);
   assert.doesNotMatch(JSON.stringify(evidence), /must-never-enter-evidence/u);
   assert.doesNotMatch(JSON.stringify(evidence), /argv/u);
 });
 
-test('a failed command blocks its hard gate, emits NOT_RUN evidence, and fails the release', () => {
+test('failed command emits NOT_RUN evidence and fails the release', () => {
   const executed = [];
   const evidence = runReleaseGate(makeManifest(), {
     now: makeClock(),
     execute(command) {
       executed.push(command.id);
       if (command.id === 'COMMAND_TWO') {
-        return { exitCode: 7, errorCode: 'COMMAND_FAILED', rawSecret: 'do-not-copy' };
+        return {
+          exitCode: 7,
+          errorCode: 'COMMAND_FAILED',
+          rawSecret: 'do-not-copy',
+        };
       }
       return { exitCode: 0 };
     },
@@ -98,7 +129,10 @@ test('a failed command blocks its hard gate, emits NOT_RUN evidence, and fails t
   assert.equal(evidence.gates[0].commands[1].status, 'FAIL');
   assert.equal(evidence.gates[0].commands[1].exitCode, 7);
   assert.equal(evidence.gates[0].commands[2].status, 'NOT_RUN');
-  assert.equal(evidence.gates[0].commands[2].errorCode, 'PREREQUISITE_COMMAND_FAILED');
+  assert.equal(
+    evidence.gates[0].commands[2].errorCode,
+    'PREREQUISITE_COMMAND_FAILED',
+  );
   assert.equal(evidence.gates[1].status, 'PASS');
   assert.deepEqual(executed, ['COMMAND_ONE', 'COMMAND_TWO', 'COMMAND_FOUR']);
   assert.doesNotMatch(JSON.stringify(evidence), /do-not-copy/u);
