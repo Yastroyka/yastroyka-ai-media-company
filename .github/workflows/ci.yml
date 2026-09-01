@@ -62,12 +62,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TASK-012 Prettier output probe
-        run: |
-          echo '--- TASK-012 PRETTIER OUTPUT BEGIN ---'
-          pnpm exec prettier scripts/r1-release-gate.test.mjs
-          echo '--- TASK-012 PRETTIER OUTPUT END ---'
-
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
