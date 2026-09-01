@@ -8,7 +8,6 @@ export const ANALYTICS_ATTRIBUTION_MODEL = 'LAST_TRACKED_CLICK' as const;
 export const ANALYTICS_CAUSALITY = 'NON_CAUSAL_OBSERVED_ATTRIBUTION' as const;
 
 export interface CreateAnalyticsSessionInput {
-  readonly [key: string]: unknown;
   readonly sessionId: string;
   readonly startedAt: string;
 }
@@ -24,7 +23,6 @@ export interface RecordAnalyticsClickInput {
 }
 
 export interface RecordAnalyticsOrderLineInput {
-  readonly [key: string]: unknown;
   readonly orderLineId: string;
   readonly sessionId: string;
   readonly externalOrderId: string;
@@ -222,6 +220,19 @@ function assertOrderLineMatches(row: OrderLineRow, input: RecordAnalyticsOrderLi
   }
 }
 
+function toAttributionAssignment(row: AttributionRow): AnalyticsAttributionAssignment {
+  if (row.attribution_model !== ANALYTICS_ATTRIBUTION_MODEL || row.causality_claim !== false) {
+    throw new AnalyticsAttributionConflictError();
+  }
+
+  return {
+    orderLineId: row.order_line_id,
+    clickId: row.click_id,
+    attributionModel: ANALYTICS_ATTRIBUTION_MODEL,
+    causality: ANALYTICS_CAUSALITY,
+  };
+}
+
 async function requireSession(
   database: Sequelize,
   transaction: Transaction,
@@ -258,7 +269,13 @@ export class PostgresAnalyticsAttributionStore {
           VALUES (:sessionId, :startedAt)
           ON CONFLICT (id) DO NOTHING;
         `,
-        { replacements: input, transaction },
+        {
+          replacements: {
+            sessionId: input.sessionId,
+            startedAt: input.startedAt,
+          },
+          transaction,
+        },
       );
 
       const rows = await this.database.query<SessionRow>(
@@ -387,7 +404,20 @@ export class PostgresAnalyticsAttributionStore {
           )
           ON CONFLICT (id) DO NOTHING;
         `,
-        { replacements: input, transaction },
+        {
+          replacements: {
+            orderLineId: input.orderLineId,
+            sessionId: input.sessionId,
+            externalOrderId: input.externalOrderId,
+            externalOrderLineId: input.externalOrderLineId,
+            productId: input.productId,
+            offerId: input.offerId,
+            gmvMinor: input.gmvMinor,
+            currency: input.currency,
+            orderedAt: input.orderedAt,
+          },
+          transaction,
+        },
       );
 
       const rows = await this.database.query<OrderLineRow>(
@@ -417,35 +447,6 @@ export class PostgresAnalyticsAttributionStore {
     requireUuid(orderLineId, 'orderLineId');
 
     return this.database.transaction(async (transaction) => {
-      const existingRows = await this.database.query<AttributionRow>(
-        `
-          SELECT order_line_id, click_id, attribution_model, causality_claim
-          FROM analytics_attributions
-          WHERE order_line_id = :orderLineId
-          FOR SHARE;
-        `,
-        {
-          replacements: { orderLineId },
-          type: QueryTypes.SELECT,
-          transaction,
-        },
-      );
-      const existing = existingRows[0];
-      if (existing !== undefined) {
-        if (
-          existing.attribution_model !== ANALYTICS_ATTRIBUTION_MODEL ||
-          existing.causality_claim !== false
-        ) {
-          throw new AnalyticsAttributionConflictError();
-        }
-        return {
-          orderLineId: existing.order_line_id,
-          clickId: existing.click_id,
-          attributionModel: ANALYTICS_ATTRIBUTION_MODEL,
-          causality: ANALYTICS_CAUSALITY,
-        };
-      }
-
       const orderRows = await this.database.query<OrderLineRow>(
         `
           SELECT
@@ -464,6 +465,24 @@ export class PostgresAnalyticsAttributionStore {
       const orderLine = orderRows[0];
       if (orderLine === undefined) {
         throw new AnalyticsAttributionConflictError();
+      }
+
+      const existingRows = await this.database.query<AttributionRow>(
+        `
+          SELECT order_line_id, click_id, attribution_model, causality_claim
+          FROM analytics_attributions
+          WHERE order_line_id = :orderLineId
+          FOR SHARE;
+        `,
+        {
+          replacements: { orderLineId },
+          type: QueryTypes.SELECT,
+          transaction,
+        },
+      );
+      const existing = existingRows[0];
+      if (existing !== undefined) {
+        return toAttributionAssignment(existing);
       }
 
       const clickRows = await this.database.query<ClickRow>(
