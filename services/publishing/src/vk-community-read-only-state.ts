@@ -1,4 +1,8 @@
-import { PostgresPlatformWorkspaceStore, createReadOnlyDatabaseConnection } from '@yastroyka/db';
+import {
+  PostgresPlatformWorkspaceStore,
+  PostgresPublicationDiscoveryStore,
+  createReadOnlyDatabaseConnection,
+} from '@yastroyka/db';
 import type { VkCommunityPublicationStatePort } from '@yastroyka/orchestrator';
 
 export interface VkCommunityReadOnlyPublicationStateLease {
@@ -6,17 +10,17 @@ export interface VkCommunityReadOnlyPublicationStateLease {
   readonly close: () => Promise<void>;
 }
 
-export async function openPostgresVkCommunityReadOnlyState(): Promise<VkCommunityReadOnlyPublicationStateLease> {
+export interface VkCommunityReadOnlyPublicationDiscoveryLease {
+  readonly publicationDiscovery: Pick<PostgresPublicationDiscoveryStore, 'listRecentByPlatform'>;
+  readonly close: () => Promise<void>;
+}
+
+async function openReadOnlyDatabase() {
   const database = createReadOnlyDatabaseConnection();
 
   try {
     await database.authenticate();
-    return {
-      publicationState: new PostgresPlatformWorkspaceStore(database),
-      async close() {
-        await database.close();
-      },
-    };
+    return database;
   } catch {
     try {
       await database.close();
@@ -25,4 +29,26 @@ export async function openPostgresVkCommunityReadOnlyState(): Promise<VkCommunit
     }
     throw new Error('VK read-only PostgreSQL state unavailable');
   }
+}
+
+export async function openPostgresVkCommunityReadOnlyState(): Promise<VkCommunityReadOnlyPublicationStateLease> {
+  const database = await openReadOnlyDatabase();
+
+  return {
+    publicationState: new PostgresPlatformWorkspaceStore(database),
+    async close() {
+      await database.close();
+    },
+  };
+}
+
+export async function openPostgresVkCommunityPublicationDiscovery(): Promise<VkCommunityReadOnlyPublicationDiscoveryLease> {
+  const database = await openReadOnlyDatabase();
+
+  return {
+    publicationDiscovery: new PostgresPublicationDiscoveryStore(database),
+    async close() {
+      await database.close();
+    },
+  };
 }
