@@ -241,7 +241,11 @@ async function requireSession(
 }
 
 export class PostgresAnalyticsAttributionStore {
-  constructor(private readonly database: Sequelize) {}
+  private readonly database: Sequelize;
+
+  constructor(database: Sequelize) {
+    this.database = database;
+  }
 
   async createSession(input: CreateAnalyticsSessionInput): Promise<void> {
     requireUuid(input.sessionId, 'sessionId');
