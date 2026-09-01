@@ -62,72 +62,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run quality checks
-        run: pnpm run quality:check
-
-      - name: Typecheck authorization package
-        run: pnpm --filter @yastroyka/auth run typecheck
-
-      - name: Run authorization tests
-        run: pnpm --filter @yastroyka/auth run test
-
-      - name: Typecheck orchestrator service
-        run: pnpm --filter @yastroyka/orchestrator run typecheck
-
-      - name: Run orchestrator tests
-        run: pnpm --filter @yastroyka/orchestrator run test
-
-      - name: Typecheck Model Exchange
-        run: pnpm --filter @yastroyka/model-exchange run typecheck
-
-      - name: Run Model Exchange tests
-        run: pnpm --filter @yastroyka/model-exchange run test
-
-      - name: Typecheck Temporal workflows
-        run: pnpm --filter @yastroyka/temporal-workflows run typecheck
-
-      - name: Run Temporal workflow tests
-        run: pnpm --filter @yastroyka/temporal-workflows run test
-
-      - name: Typecheck commerce SDK
-        run: pnpm --filter @yastroyka/commerce-sdk run typecheck
-
-      - name: Run commerce SDK tests
-        run: pnpm --filter @yastroyka/commerce-sdk run test
-
-      - name: Typecheck Commerce Content Bridge
-        run: pnpm --filter @yastroyka/commerce-bridge run typecheck
-
-      - name: Run Commerce Content Bridge tests
-        run: pnpm --filter @yastroyka/commerce-bridge run test
-
-      - name: Typecheck Control Room
-        run: pnpm --filter @yastroyka/control-room run typecheck
-
-      - name: Run Control Room contract tests
-        run: pnpm --filter @yastroyka/control-room run test
-
-      - name: Build Control Room
-        run: pnpm --filter @yastroyka/control-room run build
-
-      - name: Typecheck publishing service
-        run: pnpm --filter @yastroyka/publishing run typecheck
-
-      - name: Run publishing service tests
-        run: pnpm --filter @yastroyka/publishing run test
-
-      - name: Typecheck owner signing tool
-        run: pnpm --filter @yastroyka/owner-signing run typecheck
-
-      - name: Run owner signing tests
-        run: pnpm --filter @yastroyka/owner-signing run test
-
-      - name: Typecheck database package
-        run: pnpm --filter @yastroyka/db run typecheck
-
-      - name: Run database integration tests
-        run: pnpm --filter @yastroyka/db run test:integration
+      - name: Run R1 Golden Evals Release Gate
+        run: pnpm run release:gate:r1
         env:
+          YASTROYKA_RELEASE_GATE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
           YASTROYKA_DB_HOST: localhost
           YASTROYKA_DB_PORT: '5432'
           YASTROYKA_DB_NAME: yastroyka_r1_test
