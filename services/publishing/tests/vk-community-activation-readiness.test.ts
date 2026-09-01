@@ -29,7 +29,9 @@ function record(
   };
 }
 
-function source(records: readonly PublicationDiscoveryRecord[]): VkCommunityActivationReadinessSource {
+function source(
+  records: readonly PublicationDiscoveryRecord[],
+): VkCommunityActivationReadinessSource {
   return {
     async listRecentByPlatform(platform, limit) {
       assert.equal(platform, 'VK_COMMUNITY');
@@ -60,7 +62,10 @@ test('AUTO publication is reported only as a rehearsal candidate without payload
   );
   assert.equal(result.guarantees.productionReadyClaim, false);
   assert.equal(result.guarantees.publicationPayloadRead, false);
-  assert.equal(result.recent.some((candidate) => Object.hasOwn(candidate, 'payload')), false);
+  assert.equal(
+    result.recent.some((candidate) => Object.hasOwn(candidate, 'payload')),
+    false,
+  );
   assert.equal(
     result.autoCandidates.some((candidate) => Object.hasOwn(candidate, 'payload')),
     false,
