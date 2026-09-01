@@ -22,8 +22,9 @@ R1 already has subsystem acceptance suites for authorization, orchestration, Mod
 - bind CI evidence to the exact pull-request head SHA (or exact push SHA);
 - write sanitized local JSON evidence under ignored `.tmp/` state;
 - append a sanitized hard-gate summary to GitHub Actions step summary when available;
+- scope transient `YASTROYKA_DB_*` test environment only to the canonical PostgreSQL hard gate;
 - keep the existing protected required check name `Quality` while making the R1 release gate its canonical acceptance entrypoint;
-- add self-tests for manifest validation, fail-closed behavior, NOT_RUN evidence, revision binding, and secret/error sanitization.
+- add self-tests for manifest validation, fail-closed behavior, NOT_RUN evidence, revision binding, environment scoping, and secret/error sanitization.
 
 ## OUT OF SCOPE
 
@@ -55,10 +56,11 @@ The R1 manifest covers:
 
 - command execution uses `shell: false` and a strict executable allowlist (`node`, `pnpm`);
 - the manifest cannot define environment variables;
+- transient `YASTROYKA_DB_HOST`, `YASTROYKA_DB_PORT`, `YASTROYKA_DB_NAME`, `YASTROYKA_DB_USER`, and `YASTROYKA_DB_PASSWORD` values are removed from every child environment except `POSTGRES_CANONICAL_STATE`;
 - evidence contains only release/revision/time, gate/command IDs and labels, authority references, status, exit code, sanitized error code, and duration;
 - child-process stdout/stderr may remain normal CI logs, but is never copied into the JSON evidence object;
 - thrown executor errors collapse to a fixed `EXECUTOR_ERROR` code;
-- CI supplies PostgreSQL credentials only through the existing job environment; the gate does not serialize them.
+- CI supplies PostgreSQL test credentials through the release-gate process environment, but the runner scopes them to the PostgreSQL gate and never serializes them.
 
 ## RISK
 
@@ -74,6 +76,7 @@ R2 for implementation because TASK-012 changes the canonical CI/release-governan
 - malformed/duplicate/unsafe manifests fail closed;
 - arbitrary executor error text or extra result fields cannot enter evidence;
 - CI binds the evidence to the exact source SHA;
+- PostgreSQL test environment is unavailable to non-PostgreSQL hard gates;
 - the existing R1 acceptance commands remain covered by the canonical `Quality` job;
 - no release/deployment/merge side effect is introduced.
 
@@ -82,6 +85,7 @@ R2 for implementation because TASK-012 changes the canonical CI/release-governan
 - `node --test scripts/r1-release-gate.test.mjs`;
 - `pnpm run quality:check` through the release gate;
 - every existing R1 subsystem typecheck/test/build command through the release gate;
+- environment-scope self-test proving `YASTROYKA_DB_*` is visible only to `POSTGRES_CANONICAL_STATE`;
 - full PostgreSQL integration suite through the release gate;
 - exact-head GitHub Actions `Quality` result.
 
@@ -91,7 +95,7 @@ Revert the TASK-012 squash commit. This restores the previous explicit CI step l
 
 ## EVIDENCE
 
-Provide exact base/head SHA, changed-file scope, manifest gate list, self-test results, exact-head CI, sanitized step-summary behavior, security review, rollback statement, and open risks.
+Provide exact base/head SHA, changed-file scope, manifest gate list, self-test results, exact-head CI, sanitized step-summary behavior, environment-scope evidence, security review, rollback statement, and open risks.
 
 ## OWNER GATES
 
