@@ -81,20 +81,26 @@ test('TASK-024 publication discovery is metadata-only, bounded and platform-scop
       `,
     );
 
-    await t.test('recent VK Community rows are newest-first and exclude other platforms', async () => {
-      const records = await discoveryStore.listRecentByPlatform('VK_COMMUNITY', 3);
+    await t.test(
+      'recent VK Community rows are newest-first and exclude other platforms',
+      async () => {
+        const records = await discoveryStore.listRecentByPlatform('VK_COMMUNITY', 3);
 
-      assert.deepEqual(
-        records.map((record) => record.publicationId),
-        [VK_COMMUNITY_NEW_ID, VK_COMMUNITY_AUTO_ID, VK_COMMUNITY_OLD_ID],
-      );
-      assert.deepEqual(
-        records.map((record) => record.platform),
-        ['VK_COMMUNITY', 'VK_COMMUNITY', 'VK_COMMUNITY'],
-      );
-      assert.equal(records.some((record) => record.publicationId === VK_VIDEO_ID), false);
-      assert.equal(records[1]?.status, 'AUTO');
-    });
+        assert.deepEqual(
+          records.map((record) => record.publicationId),
+          [VK_COMMUNITY_NEW_ID, VK_COMMUNITY_AUTO_ID, VK_COMMUNITY_OLD_ID],
+        );
+        assert.deepEqual(
+          records.map((record) => record.platform),
+          ['VK_COMMUNITY', 'VK_COMMUNITY', 'VK_COMMUNITY'],
+        );
+        assert.equal(
+          records.some((record) => record.publicationId === VK_VIDEO_ID),
+          false,
+        );
+        assert.equal(records[1]?.status, 'AUTO');
+      },
+    );
 
     await t.test('discovery result shape contains no payload field', async () => {
       const [record] = await discoveryStore.listRecentByPlatform('VK_COMMUNITY', 1);
@@ -116,10 +122,7 @@ test('TASK-024 publication discovery is metadata-only, bounded and platform-scop
       assert.equal(records.length, 2);
       await assert.rejects(discoveryStore.listRecentByPlatform('VK_COMMUNITY', 0), /limit/u);
       await assert.rejects(discoveryStore.listRecentByPlatform('VK_COMMUNITY', 51), /limit/u);
-      await assert.rejects(
-        discoveryStore.listRecentByPlatform('VK_COMMUNITY', 1.5),
-        /limit/u,
-      );
+      await assert.rejects(discoveryStore.listRecentByPlatform('VK_COMMUNITY', 1.5), /limit/u);
     });
   } finally {
     await database
