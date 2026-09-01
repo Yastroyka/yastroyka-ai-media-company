@@ -15,6 +15,7 @@ const CLICK_LATE_ID = '00000000-0000-4000-8000-000000001107';
 const ORDER_LINE_ID = '00000000-0000-4000-8000-000000001108';
 const SECOND_ORDER_LINE_ID = '00000000-0000-4000-8000-000000001109';
 const UNMATCHED_ORDER_LINE_ID = '00000000-0000-4000-8000-00000000110a';
+const CONCURRENT_ORDER_LINE_ID = '00000000-0000-4000-8000-00000000110c';
 
 process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
 process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
@@ -34,7 +35,12 @@ async function cleanup(database: ReturnType<typeof createDatabaseConnection>): P
     `DELETE FROM analytics_attributions WHERE order_line_id IN (:orderLineIds);`,
     {
       replacements: {
-        orderLineIds: [ORDER_LINE_ID, SECOND_ORDER_LINE_ID, UNMATCHED_ORDER_LINE_ID],
+        orderLineIds: [
+          ORDER_LINE_ID,
+          SECOND_ORDER_LINE_ID,
+          UNMATCHED_ORDER_LINE_ID,
+          CONCURRENT_ORDER_LINE_ID,
+        ],
       },
     },
   );
@@ -246,6 +252,35 @@ test('TASK-011 queries the tracked publication-to-order-line path without causal
         causality_claim: false,
       },
     ]);
+
+    await analytics.recordOrderLine({
+      orderLineId: CONCURRENT_ORDER_LINE_ID,
+      sessionId: SESSION_ID,
+      externalOrderId: 'order-9003',
+      externalOrderLineId: 'order-9003-line-1',
+      productId: 'product-42',
+      offerId: 'offer-42',
+      gmvMinor: 25_000,
+      currency: 'RUB',
+      orderedAt: '2026-09-01T10:06:00.000Z',
+    });
+
+    const concurrentAssignments = await Promise.all([
+      analytics.attributeLastTrackedClick(CONCURRENT_ORDER_LINE_ID),
+      analytics.attributeLastTrackedClick(CONCURRENT_ORDER_LINE_ID),
+    ]);
+    assert.deepEqual(concurrentAssignments[0], concurrentAssignments[1]);
+    assert.equal(concurrentAssignments[0]?.clickId, CLICK_LATE_ID);
+
+    const [concurrentRows] = await database.query(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM analytics_attributions
+        WHERE order_line_id = :orderLineId;
+      `,
+      { replacements: { orderLineId: CONCURRENT_ORDER_LINE_ID } },
+    );
+    assert.deepEqual(concurrentRows, [{ count: '1' }]);
 
     await cleanup(database);
     await migrator.down({ to: '0005-analytics-attribution' });
