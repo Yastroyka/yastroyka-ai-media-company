@@ -140,7 +140,7 @@ function formatCount(value: number | undefined): string {
             class="refresh-button"
             type="button"
             :disabled="status === 'pending'"
-            @click="refresh"
+            @click="refresh()"
           >
             {{ status === 'pending' ? 'Обновляем…' : 'Обновить данные' }}
           </button>
