@@ -28,25 +28,17 @@ const workspaceLabels: Record<ControlRoomWorkspaceId, string> = {
 };
 
 const reasonLabels = {
-  CONTROL_ROOM_BACKEND_NOT_CONFIGURED:
-    'Owned backend ещё не подключён к этому интерфейсу.',
-  CONTROL_ROOM_BACKEND_CONFIGURATION_INVALID:
-    'Адрес owned backend настроен некорректно.',
-  CONTROL_ROOM_BACKEND_UNREACHABLE:
-    'Owned backend сейчас недоступен.',
-  CONTROL_ROOM_BACKEND_REJECTED_REQUEST:
-    'Owned backend отклонил read-only запрос.',
+  CONTROL_ROOM_BACKEND_NOT_CONFIGURED: 'Owned backend ещё не подключён к этому интерфейсу.',
+  CONTROL_ROOM_BACKEND_CONFIGURATION_INVALID: 'Адрес owned backend настроен некорректно.',
+  CONTROL_ROOM_BACKEND_UNREACHABLE: 'Owned backend сейчас недоступен.',
+  CONTROL_ROOM_BACKEND_REJECTED_REQUEST: 'Owned backend отклонил read-only запрос.',
   CONTROL_ROOM_BACKEND_RESPONSE_INVALID:
     'Ответ owned backend не прошёл строгую проверку контракта.',
 } as const;
 
-const readyData = computed(() =>
-  overview.value.status === 'READY' ? overview.value.data : null,
-);
+const readyData = computed(() => (overview.value.status === 'READY' ? overview.value.data : null));
 
-const connectionState = computed(() =>
-  readyData.value === null ? 'UNAVAILABLE' : 'HEALTHY',
-);
+const connectionState = computed(() => (readyData.value === null ? 'UNAVAILABLE' : 'HEALTHY'));
 
 const connectionMessage = computed(() => {
   if (overview.value.status === 'READY') {
@@ -69,9 +61,7 @@ const observedAt = computed(() => {
 const workspaceRows = computed(() =>
   CONTROL_ROOM_WORKSPACE_IDS.map((workspaceId) => ({
     workspaceId,
-    data: readyData.value?.workspaces.find(
-      (workspace) => workspace.workspaceId === workspaceId,
-    ),
+    data: readyData.value?.workspaces.find((workspace) => workspace.workspaceId === workspaceId),
   })),
 );
 
@@ -84,9 +74,7 @@ function formatDateTime(value: string): string {
 }
 
 function formatCount(value: number | undefined): string {
-  return value === undefined
-    ? '—'
-    : new Intl.NumberFormat('ru-RU').format(value);
+  return value === undefined ? '—' : new Intl.NumberFormat('ru-RU').format(value);
 }
 </script>
 
@@ -166,8 +154,8 @@ function formatCount(value: number | undefined): string {
           <span>Последнее наблюдение: {{ observedAt }}</span>
         </div>
         <p>
-          Control Room показывает только подтверждённое состояние owned backend.
-          Локальные демо-счётчики и выдуманные статусы запрещены.
+          Control Room показывает только подтверждённое состояние owned backend. Локальные
+          демо-счётчики и выдуманные статусы запрещены.
         </p>
       </section>
 
@@ -176,9 +164,9 @@ function formatCount(value: number | undefined): string {
           <p class="eyebrow">Операционный контур R1</p>
           <h2>Один интерфейс для управления AI-заводом</h2>
           <p>
-            Согласования, инциденты, площадки и выбор моделей собраны в едином
-            read-only представлении. Управляющие действия появятся только вместе
-            с каноническим AuthZ и audit trail.
+            Согласования, инциденты, площадки и выбор моделей собраны в едином read-only
+            представлении. Управляющие действия появятся только вместе с каноническим AuthZ и audit
+            trail.
           </p>
         </div>
         <div class="hero-panel__rail" aria-label="Производственная цепочка">
@@ -198,9 +186,7 @@ function formatCount(value: number | undefined): string {
         <article id="approvals" class="metric-card">
           <div class="metric-card__head">
             <span class="metric-card__index">A</span>
-            <OperationalStatePill
-              :state="readyData?.approvals.state ?? 'UNAVAILABLE'"
-            />
+            <OperationalStatePill :state="readyData?.approvals.state ?? 'UNAVAILABLE'" />
           </div>
           <span class="metric-card__label">Ожидают решения</span>
           <strong class="metric-card__value">
@@ -218,9 +204,7 @@ function formatCount(value: number | undefined): string {
         <article id="incidents" class="metric-card">
           <div class="metric-card__head">
             <span class="metric-card__index">I</span>
-            <OperationalStatePill
-              :state="readyData?.incidents.state ?? 'UNAVAILABLE'"
-            />
+            <OperationalStatePill :state="readyData?.incidents.state ?? 'UNAVAILABLE'" />
           </div>
           <span class="metric-card__label">Открытые инциденты</span>
           <strong class="metric-card__value">
@@ -237,9 +221,7 @@ function formatCount(value: number | undefined): string {
             <span class="metric-card__index">P</span>
             <OperationalStatePill
               :state="
-                readyData?.workspaces.some(
-                  (workspace) => workspace.state === 'BLOCKED',
-                )
+                readyData?.workspaces.some((workspace) => workspace.state === 'BLOCKED')
                   ? 'BLOCKED'
                   : readyData
                     ? 'HEALTHY'
@@ -257,9 +239,7 @@ function formatCount(value: number | undefined): string {
         <article class="metric-card">
           <div class="metric-card__head">
             <span class="metric-card__index">M</span>
-            <OperationalStatePill
-              :state="readyData?.modelDecision.state ?? 'UNAVAILABLE'"
-            />
+            <OperationalStatePill :state="readyData?.modelDecision.state ?? 'UNAVAILABLE'" />
           </div>
           <span class="metric-card__label">Последний route decision</span>
           <strong class="metric-card__value metric-card__value--model">
@@ -282,10 +262,7 @@ function formatCount(value: number | undefined): string {
           </div>
 
           <div class="workspace-table" role="table" aria-label="Platform OS">
-            <div
-              class="workspace-table__row workspace-table__row--head"
-              role="row"
-            >
+            <div class="workspace-table__row workspace-table__row--head" role="row">
               <span role="columnheader">Площадка</span>
               <span role="columnheader">Состояние</span>
               <span role="columnheader">Активная публикация</span>
@@ -301,9 +278,7 @@ function formatCount(value: number | undefined): string {
                 {{ workspaceLabels[workspace.workspaceId] }}
               </strong>
               <span role="cell">
-                <OperationalStatePill
-                  :state="workspace.data?.state ?? 'UNAVAILABLE'"
-                />
+                <OperationalStatePill :state="workspace.data?.state ?? 'UNAVAILABLE'" />
               </span>
               <code role="cell">
                 {{ workspace.data?.activePublicationId ?? '—' }}

@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "@nuxt/ui";
+@import 'tailwindcss';
+@import '@nuxt/ui';
 
 :root {
   color-scheme: light;
@@ -16,7 +16,12 @@
   --amber: #c98516;
   --shadow: 0 24px 70px rgba(23, 43, 77, 0.1);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
     sans-serif;
 }
 
@@ -34,8 +39,7 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(circle at 68% 0%, rgba(71, 137, 255, 0.1), transparent 34rem),
-    #eef3f9;
+    radial-gradient(circle at 68% 0%, rgba(71, 137, 255, 0.1), transparent 34rem), #eef3f9;
 }
 
 button,
@@ -77,7 +81,7 @@ a:focus-visible {
   height: 210px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
-  content: "";
+  content: '';
 }
 
 .brand-mark {
@@ -321,34 +325,34 @@ a:focus-visible {
   box-shadow: 0 0 0 4px rgba(150, 164, 184, 0.12);
 }
 
-.state-pill[data-state="HEALTHY"] {
+.state-pill[data-state='HEALTHY'] {
   color: #0d7758;
   border-color: rgba(20, 150, 111, 0.23);
   background: rgba(20, 150, 111, 0.06);
 }
 
-.state-pill[data-state="HEALTHY"] .state-pill__dot {
+.state-pill[data-state='HEALTHY'] .state-pill__dot {
   background: var(--green);
   box-shadow: 0 0 0 4px rgba(20, 150, 111, 0.12);
 }
 
-.state-pill[data-state="DEGRADED"] {
+.state-pill[data-state='DEGRADED'] {
   color: #986008;
   border-color: rgba(201, 133, 22, 0.25);
   background: rgba(201, 133, 22, 0.07);
 }
 
-.state-pill[data-state="DEGRADED"] .state-pill__dot {
+.state-pill[data-state='DEGRADED'] .state-pill__dot {
   background: var(--amber);
 }
 
-.state-pill[data-state="BLOCKED"] {
+.state-pill[data-state='BLOCKED'] {
   color: #af3340;
   border-color: rgba(213, 74, 86, 0.25);
   background: rgba(213, 74, 86, 0.07);
 }
 
-.state-pill[data-state="BLOCKED"] .state-pill__dot {
+.state-pill[data-state='BLOCKED'] .state-pill__dot {
   background: var(--red);
 }
 
@@ -364,7 +368,7 @@ a:focus-visible {
   background: #fffaf1;
 }
 
-.connection-banner[data-ready="true"] {
+.connection-banner[data-ready='true'] {
   border-color: rgba(20, 150, 111, 0.22);
   background: #f5fcf9;
 }
@@ -376,7 +380,7 @@ a:focus-visible {
   background: var(--amber);
 }
 
-.connection-banner[data-ready="true"] .connection-banner__signal {
+.connection-banner[data-ready='true'] .connection-banner__signal {
   background: var(--green);
 }
 
@@ -422,7 +426,7 @@ a:focus-visible {
   position: absolute;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 50%;
-  content: "";
+  content: '';
 }
 
 .hero-panel::before {
@@ -609,10 +613,9 @@ a:focus-visible {
 .workspace-table__row {
   display: grid;
   min-height: 60px;
-  grid-template-columns: minmax(130px, 0.8fr) minmax(150px, 0.85fr) minmax(
-      150px,
-      1fr
-    ) minmax(170px, 1.15fr);
+  grid-template-columns:
+    minmax(130px, 0.8fr) minmax(150px, 0.85fr) minmax(150px, 1fr)
+    minmax(170px, 1.15fr);
   align-items: center;
   gap: 12px;
   padding: 12px 16px;

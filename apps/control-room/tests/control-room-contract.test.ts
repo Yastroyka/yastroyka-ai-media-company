@@ -94,16 +94,10 @@ test('rejects malformed counts, timestamps, and duplicate workspaces', () => {
 });
 
 test('creates a sanitized unavailable envelope without raw error text', () => {
-  assert.deepEqual(
-    createUnavailableControlRoomOverview(
-      'CONTROL_ROOM_BACKEND_UNREACHABLE',
-      NOW,
-    ),
-    {
-      status: 'UNAVAILABLE',
-      reasonCode: 'CONTROL_ROOM_BACKEND_UNREACHABLE',
-      observedAt: NOW,
-      data: null,
-    },
-  );
+  assert.deepEqual(createUnavailableControlRoomOverview('CONTROL_ROOM_BACKEND_UNREACHABLE', NOW), {
+    status: 'UNAVAILABLE',
+    reasonCode: 'CONTROL_ROOM_BACKEND_UNREACHABLE',
+    observedAt: NOW,
+    data: null,
+  });
 });

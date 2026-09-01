@@ -1,10 +1,6 @@
 export const CONTROL_ROOM_OVERVIEW_PATH = '/v1/control-room/overview' as const;
 
-export const CONTROL_ROOM_WORKSPACE_IDS = [
-  'VK_COMMUNITY',
-  'VK_VIDEO',
-  'MAX',
-] as const;
+export const CONTROL_ROOM_WORKSPACE_IDS = ['VK_COMMUNITY', 'VK_VIDEO', 'MAX'] as const;
 
 export const CONTROL_ROOM_OPERATIONAL_STATES = [
   'HEALTHY',
@@ -13,10 +9,8 @@ export const CONTROL_ROOM_OPERATIONAL_STATES = [
   'UNKNOWN',
 ] as const;
 
-export type ControlRoomWorkspaceId =
-  (typeof CONTROL_ROOM_WORKSPACE_IDS)[number];
-export type ControlRoomOperationalState =
-  (typeof CONTROL_ROOM_OPERATIONAL_STATES)[number];
+export type ControlRoomWorkspaceId = (typeof CONTROL_ROOM_WORKSPACE_IDS)[number];
+export type ControlRoomOperationalState = (typeof CONTROL_ROOM_OPERATIONAL_STATES)[number];
 
 export interface ControlRoomApprovalSummary {
   state: ControlRoomOperationalState;
@@ -74,9 +68,7 @@ export interface ControlRoomUnavailableEnvelope {
   data: null;
 }
 
-export type ControlRoomOverviewEnvelope =
-  | ControlRoomReadyEnvelope
-  | ControlRoomUnavailableEnvelope;
+export type ControlRoomOverviewEnvelope = ControlRoomReadyEnvelope | ControlRoomUnavailableEnvelope;
 
 const workspaceIds = new Set<string>(CONTROL_ROOM_WORKSPACE_IDS);
 const operationalStates = new Set<string>(CONTROL_ROOM_OPERATIONAL_STATES);
@@ -85,17 +77,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function hasExactKeys(
-  value: Record<string, unknown>,
-  keys: readonly string[],
-): boolean {
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
 
-  return (
-    actual.length === expected.length &&
-    actual.every((key, index) => key === expected[index])
-  );
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 
 function isNullableString(value: unknown): value is string | null {
@@ -110,9 +96,7 @@ function isTimestamp(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
-function isOperationalState(
-  value: unknown,
-): value is ControlRoomOperationalState {
+function isOperationalState(value: unknown): value is ControlRoomOperationalState {
   return typeof value === 'string' && operationalStates.has(value);
 }
 
@@ -135,12 +119,7 @@ function isIncidentSummary(value: unknown): value is ControlRoomIncidentSummary 
   }
 
   return (
-    hasExactKeys(value, [
-      'state',
-      'openCount',
-      'criticalCount',
-      'newestIncidentAt',
-    ]) &&
+    hasExactKeys(value, ['state', 'openCount', 'criticalCount', 'newestIncidentAt']) &&
     isOperationalState(value.state) &&
     isNonNegativeInteger(value.openCount) &&
     isNonNegativeInteger(value.criticalCount) &&
@@ -149,9 +128,7 @@ function isIncidentSummary(value: unknown): value is ControlRoomIncidentSummary 
   );
 }
 
-function isWorkspaceSummary(
-  value: unknown,
-): value is ControlRoomWorkspaceSummary {
+function isWorkspaceSummary(value: unknown): value is ControlRoomWorkspaceSummary {
   if (!isRecord(value)) {
     return false;
   }
@@ -173,9 +150,7 @@ function isWorkspaceSummary(
   );
 }
 
-function isModelDecisionSummary(
-  value: unknown,
-): value is ControlRoomModelDecisionSummary {
+function isModelDecisionSummary(value: unknown): value is ControlRoomModelDecisionSummary {
   if (!isRecord(value)) {
     return false;
   }
@@ -225,9 +200,7 @@ function isOverviewData(value: unknown): value is ControlRoomOverviewData {
   );
 }
 
-export function isControlRoomReadyEnvelope(
-  value: unknown,
-): value is ControlRoomReadyEnvelope {
+export function isControlRoomReadyEnvelope(value: unknown): value is ControlRoomReadyEnvelope {
   if (!isRecord(value) || value.status !== 'READY') {
     return false;
   }

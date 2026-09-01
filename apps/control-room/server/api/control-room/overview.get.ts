@@ -14,9 +14,7 @@ function resolveUpstreamUrl(rawBaseUrl: unknown): URL | null {
 
   try {
     const baseUrl = new URL(rawBaseUrl.trim());
-    const localHttp =
-      baseUrl.protocol === 'http:' &&
-      LOCAL_DEVELOPMENT_HOSTS.has(baseUrl.hostname);
+    const localHttp = baseUrl.protocol === 'http:' && LOCAL_DEVELOPMENT_HOSTS.has(baseUrl.hostname);
 
     if (
       (baseUrl.protocol !== 'https:' && !localHttp) ||
@@ -32,10 +30,7 @@ function resolveUpstreamUrl(rawBaseUrl: unknown): URL | null {
       ? baseUrl.toString()
       : `${baseUrl.toString()}/`;
 
-    return new URL(
-      CONTROL_ROOM_OVERVIEW_PATH.replace(/^\//, ''),
-      normalizedBase,
-    );
+    return new URL(CONTROL_ROOM_OVERVIEW_PATH.replace(/^\//, ''), normalizedBase);
   } catch {
     return null;
   }
@@ -48,10 +43,7 @@ export default defineEventHandler(async (event) => {
 
   if (typeof rawBaseUrl !== 'string' || rawBaseUrl.trim() === '') {
     setResponseStatus(event, 503);
-    return createUnavailableControlRoomOverview(
-      'CONTROL_ROOM_BACKEND_NOT_CONFIGURED',
-      observedAt,
-    );
+    return createUnavailableControlRoomOverview('CONTROL_ROOM_BACKEND_NOT_CONFIGURED', observedAt);
   }
 
   const upstreamUrl = resolveUpstreamUrl(rawBaseUrl);
@@ -93,9 +85,6 @@ export default defineEventHandler(async (event) => {
     return candidate;
   } catch {
     setResponseStatus(event, 502);
-    return createUnavailableControlRoomOverview(
-      'CONTROL_ROOM_BACKEND_UNREACHABLE',
-      observedAt,
-    );
+    return createUnavailableControlRoomOverview('CONTROL_ROOM_BACKEND_UNREACHABLE', observedAt);
   }
 });

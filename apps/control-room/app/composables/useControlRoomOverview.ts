@@ -8,23 +8,15 @@ export function useControlRoomOverview() {
     'control-room-overview',
     async () => {
       try {
-        return await $fetch<ControlRoomOverviewEnvelope>(
-          '/api/control-room/overview',
-          {
-            ignoreResponseError: true,
-          },
-        );
+        return await $fetch<ControlRoomOverviewEnvelope>('/api/control-room/overview', {
+          ignoreResponseError: true,
+        });
       } catch {
-        return createUnavailableControlRoomOverview(
-          'CONTROL_ROOM_BACKEND_UNREACHABLE',
-        );
+        return createUnavailableControlRoomOverview('CONTROL_ROOM_BACKEND_UNREACHABLE');
       }
     },
     {
-      default: () =>
-        createUnavailableControlRoomOverview(
-          'CONTROL_ROOM_BACKEND_NOT_CONFIGURED',
-        ),
+      default: () => createUnavailableControlRoomOverview('CONTROL_ROOM_BACKEND_NOT_CONFIGURED'),
     },
   );
 }
