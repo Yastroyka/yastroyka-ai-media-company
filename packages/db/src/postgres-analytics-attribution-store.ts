@@ -8,6 +8,7 @@ export const ANALYTICS_ATTRIBUTION_MODEL = 'LAST_TRACKED_CLICK' as const;
 export const ANALYTICS_CAUSALITY = 'NON_CAUSAL_OBSERVED_ATTRIBUTION' as const;
 
 export interface CreateAnalyticsSessionInput {
+  readonly [key: string]: unknown;
   readonly sessionId: string;
   readonly startedAt: string;
 }
@@ -23,6 +24,7 @@ export interface RecordAnalyticsClickInput {
 }
 
 export interface RecordAnalyticsOrderLineInput {
+  readonly [key: string]: unknown;
   readonly orderLineId: string;
   readonly sessionId: string;
   readonly externalOrderId: string;
