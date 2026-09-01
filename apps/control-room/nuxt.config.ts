@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     controlRoomApiBaseUrl: '',
     public: {
-      controlRoomOrigin: 'https://dev.yastroyka.online',
+      controlRoomOrigin: '',
     },
   },
   routeRules: {
