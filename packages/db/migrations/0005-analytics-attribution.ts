@@ -1,4 +1,4 @@
-import { DataTypes, literal, type QueryInterface } from 'sequelize';
+import { DataTypes, Op, literal, type QueryInterface } from 'sequelize';
 import type { MigrationParams } from 'umzug';
 
 type MigrationContext = QueryInterface;
@@ -138,7 +138,7 @@ export async function up({ context }: MigrationParams<MigrationContext>): Promis
       type: 'check',
       name: 'chk_analytics_order_lines_gmv_minor_nonnegative',
       where: {
-        gmv_minor: { [Symbol.for('gte')]: 0 },
+        gmv_minor: { [Op.gte]: 0 },
       },
       transaction,
     });
