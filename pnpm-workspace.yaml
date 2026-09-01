@@ -23,6 +23,14 @@ minimumReleaseAgeExclude:
 # TASK-005 dependencies expose optional install scripts. They are not required by the
 # Temporal workflow package, so keep them explicitly blocked instead of granting a
 # repository-wide supply-chain exception.
+#
+# TASK-008 initially keeps Nuxt transitive build scripts denied as well. This preserves
+# the default-deny dependency boundary while CI proves whether the Control Room can
+# install/typecheck/build without granting any new install-script execution authority.
+# If a required build cannot proceed, approving a package script is a separate R2
+# supply-chain decision and must not be inferred from this task.
 allowBuilds:
   '@swc/core': false
   protobufjs: false
+  esbuild: false
+  vue-demi: false
