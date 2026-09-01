@@ -3,7 +3,7 @@ import {
   CONTROL_ROOM_WORKSPACE_IDS,
   type ControlRoomOperationalState,
   type ControlRoomWorkspaceId,
-} from '../../shared/control-room-contract';
+} from '#shared/control-room-contract';
 
 const runtimeConfig = useRuntimeConfig();
 const { data: overview, status, refresh } = await useControlRoomOverview();
