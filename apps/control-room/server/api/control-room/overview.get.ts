@@ -2,7 +2,7 @@ import {
   CONTROL_ROOM_OVERVIEW_PATH,
   createUnavailableControlRoomOverview,
   isControlRoomReadyEnvelope,
-} from '../../../shared/control-room-contract';
+} from '#shared/control-room-contract';
 
 const LOCAL_DEVELOPMENT_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 const UPSTREAM_TIMEOUT_MS = 5_000;
