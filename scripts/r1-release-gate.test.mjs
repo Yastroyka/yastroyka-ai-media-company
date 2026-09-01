@@ -67,17 +67,11 @@ test('manifest validation is exact, unique and shell-free', () => {
 
   const unsafeExecutable = makeManifest();
   unsafeExecutable.hardGates[0].commands[0].argv = ['bash', '-c', 'exit 0'];
-  assert.throws(
-    () => validateReleaseGateManifest(unsafeExecutable),
-    /unapproved executable/u,
-  );
+  assert.throws(() => validateReleaseGateManifest(unsafeExecutable), /unapproved executable/u);
 
   const unknownField = makeManifest();
   unknownField.hardGates[0].extra = true;
-  assert.throws(
-    () => validateReleaseGateManifest(unknownField),
-    /unexpected or missing keys/u,
-  );
+  assert.throws(() => validateReleaseGateManifest(unknownField), /unexpected or missing keys/u);
 });
 
 test('all passing hard gates emit PASS evidence bound to the revision', () => {
@@ -97,12 +91,7 @@ test('all passing hard gates emit PASS evidence bound to the revision', () => {
     evidence.gates.map((gate) => gate.status),
     ['PASS', 'PASS'],
   );
-  assert.deepEqual(executed, [
-    'COMMAND_ONE',
-    'COMMAND_TWO',
-    'COMMAND_THREE',
-    'COMMAND_FOUR',
-  ]);
+  assert.deepEqual(executed, ['COMMAND_ONE', 'COMMAND_TWO', 'COMMAND_THREE', 'COMMAND_FOUR']);
   assert.doesNotMatch(JSON.stringify(evidence), /must-never-enter-evidence/u);
   assert.doesNotMatch(JSON.stringify(evidence), /argv/u);
 });
@@ -129,10 +118,7 @@ test('failed command emits NOT_RUN evidence and fails the release', () => {
   assert.equal(evidence.gates[0].commands[1].status, 'FAIL');
   assert.equal(evidence.gates[0].commands[1].exitCode, 7);
   assert.equal(evidence.gates[0].commands[2].status, 'NOT_RUN');
-  assert.equal(
-    evidence.gates[0].commands[2].errorCode,
-    'PREREQUISITE_COMMAND_FAILED',
-  );
+  assert.equal(evidence.gates[0].commands[2].errorCode, 'PREREQUISITE_COMMAND_FAILED');
   assert.equal(evidence.gates[1].status, 'PASS');
   assert.deepEqual(executed, ['COMMAND_ONE', 'COMMAND_TWO', 'COMMAND_FOUR']);
   assert.doesNotMatch(JSON.stringify(evidence), /do-not-copy/u);
@@ -149,6 +135,40 @@ test('executor exceptions are sanitized and cannot produce PASS', () => {
   assert.equal(evidence.status, 'FAIL');
   assert.equal(evidence.gates[0].commands[0].errorCode, 'EXECUTOR_ERROR');
   assert.doesNotMatch(JSON.stringify(evidence), /super-secret-runtime-value/u);
+});
+
+test('PostgreSQL environment is scoped to the canonical state hard gate', () => {
+  const manifest = makeManifest();
+  manifest.hardGates[1].id = 'POSTGRES_CANONICAL_STATE';
+  const observedEnvironment = new Map();
+  const sourceEnvironment = {
+    PATH: '/safe/bin',
+    YASTROYKA_DB_HOST: 'localhost',
+    YASTROYKA_DB_PORT: '5432',
+    YASTROYKA_DB_NAME: 'test-db',
+    YASTROYKA_DB_USER: 'test-user',
+    YASTROYKA_DB_PASSWORD: 'test-password',
+  };
+
+  const evidence = runReleaseGate(manifest, {
+    env: sourceEnvironment,
+    now: makeClock(),
+    execute(command, { env }) {
+      observedEnvironment.set(command.id, env);
+      return { exitCode: 0 };
+    },
+  });
+
+  const nonDatabaseEnv = observedEnvironment.get('COMMAND_ONE');
+  const databaseEnv = observedEnvironment.get('COMMAND_FOUR');
+
+  assert.equal(evidence.status, 'PASS');
+  assert.equal(nonDatabaseEnv.PATH, '/safe/bin');
+  assert.equal(nonDatabaseEnv.YASTROYKA_DB_HOST, undefined);
+  assert.equal(nonDatabaseEnv.YASTROYKA_DB_PASSWORD, undefined);
+  assert.equal(databaseEnv.YASTROYKA_DB_HOST, 'localhost');
+  assert.equal(databaseEnv.YASTROYKA_DB_PASSWORD, 'test-password');
+  assert.equal(sourceEnvironment.YASTROYKA_DB_PASSWORD, 'test-password');
 });
 
 test('markdown summary contains only revision and hard-gate outcomes', () => {
