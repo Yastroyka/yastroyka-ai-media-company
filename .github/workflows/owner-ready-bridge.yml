@@ -15,13 +15,58 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  actions: read
 
 jobs:
   validate-ready-transition:
     name: Validate Ready transition
     runs-on: ubuntu-latest
     steps:
-      - name: Fail closed placeholder
+      - name: Validate inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          echo "TASK-025 bridge contract installed"
-          echo "Implementation remains behind validated owner gate"
+          set -euo pipefail
+
+          test -n "$PR_NUMBER"
+          test -n "$EXPECTED_HEAD_SHA"
+
+          PR_JSON="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+
+          HEAD_SHA="$(echo "$PR_JSON" | jq -r '.head.sha')"
+          IS_DRAFT="$(echo "$PR_JSON" | jq -r '.draft')"
+          PR_REPO="$(echo "$PR_JSON" | jq -r '.base.repo.full_name')"
+
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$IS_DRAFT" = "true"
+          test "$PR_REPO" = "$REPOSITORY"
+
+      - name: Validate required checks
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          STATUS="$(gh api "repos/${REPOSITORY}/commits/${EXPECTED_HEAD_SHA}/status" --jq '.state')"
+          test "$STATUS" = "success"
+
+      - name: Transition Draft to Ready
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${REPOSITORY}/pulls/${PR_NUMBER}/ready_for_review"
+
+      - name: Audit result
+        run: |
+          echo "TASK-025 READY transition completed"
