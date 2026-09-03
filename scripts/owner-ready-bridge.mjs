@@ -1,4 +1,5 @@
 import { appendFile, readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 
 const API_VERSION = '2022-11-28';
 const REQUIRED_WORKFLOW_NAME = 'CI';
@@ -215,14 +216,7 @@ const MARK_READY_MUTATION = `
 `;
 
 export async function executeOwnerReadyBridge(
-  {
-    eventName,
-    event,
-    repository,
-    repositoryOwner,
-    actor,
-    token,
-  },
+  { eventName, event, repository, repositoryOwner, actor, token },
   { fetchImpl = fetch } = {},
 ) {
   const { owner, name } = parseRepository(repository);
@@ -247,7 +241,12 @@ export async function executeOwnerReadyBridge(
     `/actions/runs?head_sha=${expectedHeadSha}&event=pull_request&per_page=100`,
   );
   const ciRun = selectSuccessfulCiRun(runsPayload, prNumber, expectedHeadSha);
-  const jobsPayload = await rest(fetchImpl, token, repository, `/actions/runs/${ciRun.id}/jobs?per_page=100`);
+  const jobsPayload = await rest(
+    fetchImpl,
+    token,
+    repository,
+    `/actions/runs/${ciRun.id}/jobs?per_page=100`,
+  );
   const qualityJobId = validateQualityJob(jobsPayload, expectedHeadSha);
 
   const reviewThreadsPayload = await graphql(
@@ -340,6 +339,6 @@ async function main() {
   }
 }
 
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }
