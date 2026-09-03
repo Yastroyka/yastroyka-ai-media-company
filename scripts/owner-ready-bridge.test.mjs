@@ -75,9 +75,7 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
           draft: false,
           head: {
             ...draftPullRequest().head,
-            sha: movedHead
-              ? '2222222222222222222222222222222222222222'
-              : SHA,
+            sha: movedHead ? '2222222222222222222222222222222222222222' : SHA,
           },
         });
       }
@@ -122,9 +120,7 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
             repository: {
               pullRequest: {
                 reviewThreads: {
-                  nodes: unresolved
-                    ? [{ isResolved: false }]
-                    : [{ isResolved: true }],
+                  nodes: unresolved ? [{ isResolved: false }] : [{ isResolved: true }],
                   pageInfo: { hasNextPage: false },
                 },
               },
@@ -154,10 +150,7 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
 }
 
 function expectBridgeCode(fn, code) {
-  assert.throws(
-    fn,
-    (error) => error instanceof OwnerReadyBridgeError && error.code === code,
-  );
+  assert.throws(fn, (error) => error instanceof OwnerReadyBridgeError && error.code === code);
 }
 
 test('owner command is exact and rejects command injection', () => {
