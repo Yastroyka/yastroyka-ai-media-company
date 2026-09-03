@@ -1,72 +1,43 @@
 name: Owner Ready Bridge
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Pull request number
-        required: true
-        type: string
-      expected_head_sha:
-        description: Exact expected PR head SHA
-        required: true
-        type: string
+  issue_comment:
+    types:
+      - created
 
 permissions:
   contents: read
   pull-requests: write
   actions: read
 
+concurrency:
+  group: owner-ready-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
-  validate-ready-transition:
-    name: Validate Ready transition
-    runs-on: ubuntu-latest
+  owner-ready-transition:
+    name: Owner Ready transition
+    if: >-
+      ${{ github.event.issue.pull_request != null &&
+          github.actor == github.repository_owner &&
+          startsWith(github.event.comment.body, '/owner-ready ') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
     steps:
-      - name: Validate inputs
-        shell: bash
+      - name: Checkout trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: false
+
+      - name: Execute owner Ready bridge
+        run: node scripts/owner-ready-bridge.mjs
         env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          test -n "$PR_NUMBER"
-          test -n "$EXPECTED_HEAD_SHA"
-
-          PR_JSON="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
-
-          HEAD_SHA="$(echo "$PR_JSON" | jq -r '.head.sha')"
-          IS_DRAFT="$(echo "$PR_JSON" | jq -r '.draft')"
-          PR_REPO="$(echo "$PR_JSON" | jq -r '.base.repo.full_name')"
-
-          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
-          test "$IS_DRAFT" = "true"
-          test "$PR_REPO" = "$REPOSITORY"
-
-      - name: Validate required checks
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          STATUS="$(gh api "repos/${REPOSITORY}/commits/${EXPECTED_HEAD_SHA}/status" --jq '.state')"
-          test "$STATUS" = "success"
-
-      - name: Transition Draft to Ready
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/${REPOSITORY}/pulls/${PR_NUMBER}/ready_for_review"
-
-      - name: Audit result
-        run: |
-          echo "TASK-025 READY transition completed"
+          GITHUB_TOKEN: ${{ github.token }}
