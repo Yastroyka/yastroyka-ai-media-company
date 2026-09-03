@@ -2,6 +2,8 @@
 
 This repository is an owned production system of YASTROYKA.
 
+**Project identity:** this repository is the **YASTROYKA AI factory / AI Media Company**. It is separate from the YASTROYKA marketplace/site product. Do not merge their product context, codebases, task systems, repositories or architecture by assumption.
+
 These instructions apply to every AI coding agent working in this repository.
 
 ## 1. Authority Order
@@ -266,12 +268,10 @@ A task is done only when:
 
 - the change is ready for human review through Pull Request
 
-## 13. Selective External Engineering Skills
+## 13. Selective External Engineering Methods
 
-A pinned, adapted subset of Matt Pocock engineering techniques is available under `.agents/skills/matt-*`.
+The repository's owned `.agents/skills/` registry must remain unchanged unless an explicitly approved YASTROYKA AI-factory task changes that invariant.
 
-Read `docs/agents/matt-pocock-skills.md` before relying on them. This section does **not** alter the Authority Order above: YASTROYKA-specific task bootstrap, security, evidence and release skills remain primary when responsibilities overlap.
+Selected Matt Pocock engineering techniques are adapted as **documentation methods**, not registered project skills. Read `docs/agents/matt-pocock-skills.md` for policy and `docs/agents/matt-engineering-methods.md` only when the current task needs TDD, disciplined debugging, two-axis review, domain-language work, or an explicit handoff.
 
-Use the smallest relevant helper only: `matt-tdd` for behavior-first implementation, `matt-debug` for uncertain failures, `matt-review` for final Standards/Spec review, `matt-domain` for real terminology/ADR changes, and `matt-handoff` only when an explicit session/agent handoff is needed.
-
-Do not stack duplicate Superpowers/Matt/YASTROYKA workflows for the same responsibility, and do not let an external skill spawn extra work outside repository concurrency/cost policy.
+This does **not** alter the Authority Order above. YASTROYKA AI-factory task bootstrap, security, evidence and release mechanisms remain primary. Do not stack duplicate Superpowers/Matt/YASTROYKA workflows for the same responsibility, and do not let an external method spawn extra work outside repository concurrency/cost policy.
