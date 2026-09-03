@@ -41,6 +41,12 @@ export {
 } from './postgres-platform-workspace-store.ts';
 
 export {
+  PostgresPublicationDiscoveryStore,
+  createPostgresPublicationDiscoveryStore,
+  type PublicationDiscoveryRecord,
+} from './postgres-publication-discovery-store.ts';
+
+export {
   PostgresPublishingStore,
   PublishingAuthorizationDeniedError,
   PublishingStateConflictError,

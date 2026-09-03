@@ -13,6 +13,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test tests/*.test.ts",
+    "vk:activation-readiness": "node src/vk-community-activation-readiness-cli.ts activation-readiness",
     "vk:resolve-community": "node src/vk-community-destination-resolver-cli.ts resolve-community",
     "vk:approval-packet": "node src/vk-community-approval-packet-cli.ts approval-packet",
     "vk:release-rehearsal": "node src/vk-community-release-rehearsal-cli.ts release-rehearsal",
