@@ -75,7 +75,9 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
           draft: false,
           head: {
             ...draftPullRequest().head,
-            sha: movedHead ? '2222222222222222222222222222222222222222' : SHA,
+            sha: movedHead
+              ? '2222222222222222222222222222222222222222'
+              : SHA,
           },
         });
       }
@@ -120,7 +122,9 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
             repository: {
               pullRequest: {
                 reviewThreads: {
-                  nodes: unresolved ? [{ isResolved: false }] : [{ isResolved: true }],
+                  nodes: unresolved
+                    ? [{ isResolved: false }]
+                    : [{ isResolved: true }],
                   pageInfo: { hasNextPage: false },
                 },
               },
@@ -150,13 +154,22 @@ function bridgeFetch({ unresolved = false, movedHead = false } = {}) {
 }
 
 function expectBridgeCode(fn, code) {
-  assert.throws(fn, (error) => error instanceof OwnerReadyBridgeError && error.code === code);
+  assert.throws(
+    fn,
+    (error) => error instanceof OwnerReadyBridgeError && error.code === code,
+  );
 }
 
 test('owner command is exact and rejects command injection', () => {
   assert.equal(parseOwnerReadyCommand(`/owner-ready ${SHA}`), SHA);
-  expectBridgeCode(() => parseOwnerReadyCommand(`/owner-ready ${SHA}; echo unsafe`), 'INVALID_OWNER_READY_COMMAND');
-  expectBridgeCode(() => parseOwnerReadyCommand(`/owner-ready ${SHA} `), 'INVALID_OWNER_READY_COMMAND');
+  expectBridgeCode(
+    () => parseOwnerReadyCommand(`/owner-ready ${SHA}; echo unsafe`),
+    'INVALID_OWNER_READY_COMMAND',
+  );
+  expectBridgeCode(
+    () => parseOwnerReadyCommand(`/owner-ready ${SHA} `),
+    'INVALID_OWNER_READY_COMMAND',
+  );
 });
 
 test('trigger accepts only a created PR comment from the repository owner', () => {
@@ -174,7 +187,13 @@ test('trigger accepts only a created PR comment from the repository owner', () =
     () =>
       validateOwnerEvent({
         eventName: 'issue_comment',
-        event: { ...ownerEvent(), comment: { ...ownerEvent().comment, author_association: 'MEMBER' } },
+        event: {
+          ...ownerEvent(),
+          comment: {
+            ...ownerEvent().comment,
+            author_association: 'MEMBER',
+          },
+        },
         repositoryOwner: OWNER,
         actor: OWNER,
       }),
@@ -204,8 +223,17 @@ test('pull request validation is exact-head, same-repository, main-only and Draf
   expectBridgeCode(
     () =>
       validatePullRequest(
-        draftPullRequest({ head: { sha: '2222222222222222222222222222222222222222', repo: { full_name: REPOSITORY } } }),
-        { repository: REPOSITORY, prNumber: PR_NUMBER, expectedHeadSha: SHA },
+        draftPullRequest({
+          head: {
+            sha: '2222222222222222222222222222222222222222',
+            repo: { full_name: REPOSITORY },
+          },
+        }),
+        {
+          repository: REPOSITORY,
+          prNumber: PR_NUMBER,
+          expectedHeadSha: SHA,
+        },
       ),
     'PULL_REQUEST_HEAD_MISMATCH',
   );
@@ -317,7 +345,9 @@ test('end-to-end bridge uses minimal GraphQL Ready mutation and emits safe evide
   const graphqlBodies = calls
     .filter((call) => call.url === 'https://api.github.com/graphql')
     .map((call) => JSON.parse(call.options.body));
-  const mutation = graphqlBodies.find((body) => body.query.includes('markPullRequestReadyForReview'));
+  const mutation = graphqlBodies.find((body) =>
+    body.query.includes('markPullRequestReadyForReview'),
+  );
   assert.notEqual(mutation, undefined);
   assert.doesNotMatch(mutation.query, /fullDatabaseId/u);
   assert.deepEqual(mutation.variables, { pullRequestId: PR_NODE_ID });
@@ -339,6 +369,7 @@ test('post-transition head movement fails closed instead of claiming success', a
       { fetchImpl },
     ),
     (error) =>
-      error instanceof OwnerReadyBridgeError && error.code === 'READY_TRANSITION_FINAL_STATE_MISMATCH',
+      error instanceof OwnerReadyBridgeError &&
+      error.code === 'READY_TRANSITION_FINAL_STATE_MISMATCH',
   );
 });
