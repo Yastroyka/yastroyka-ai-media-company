@@ -265,3 +265,13 @@ A task is done only when:
 - no unrelated changes remain
 
 - the change is ready for human review through Pull Request
+
+## 13. Selective External Engineering Skills
+
+A pinned, adapted subset of Matt Pocock engineering techniques is available under `.agents/skills/matt-*`.
+
+Read `docs/agents/matt-pocock-skills.md` before relying on them. This section does **not** alter the Authority Order above: YASTROYKA-specific task bootstrap, security, evidence and release skills remain primary when responsibilities overlap.
+
+Use the smallest relevant helper only: `matt-tdd` for behavior-first implementation, `matt-debug` for uncertain failures, `matt-review` for final Standards/Spec review, `matt-domain` for real terminology/ADR changes, and `matt-handoff` only when an explicit session/agent handoff is needed.
+
+Do not stack duplicate Superpowers/Matt/YASTROYKA workflows for the same responsibility, and do not let an external skill spawn extra work outside repository concurrency/cost policy.
