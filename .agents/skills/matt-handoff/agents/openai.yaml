@@ -1,0 +1,5 @@
+interface:
+  display_name: "Matt Handoff"
+  short_description: "Compact work for another agent/session"
+policy:
+  allow_implicit_invocation: false
