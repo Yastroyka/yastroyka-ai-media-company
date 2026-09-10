@@ -62,6 +62,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: TASK-028 canonical Prettier output probe
+        run: |
+          echo '--- TASK-028 SOURCE PRETTIER BEGIN ---'
+          pnpm exec prettier packages/db/src/postgres-engineering-evidence-store.ts
+          echo '--- TASK-028 SOURCE PRETTIER END ---'
+          echo '--- TASK-028 TEST PRETTIER BEGIN ---'
+          pnpm exec prettier packages/db/tests/task-028.integration.test.ts
+          echo '--- TASK-028 TEST PRETTIER END ---'
+
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
