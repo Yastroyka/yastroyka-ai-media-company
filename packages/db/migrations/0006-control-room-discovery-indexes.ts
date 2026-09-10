@@ -1,0 +1,31 @@
+import type { QueryInterface } from 'sequelize';
+import type { MigrationParams } from 'umzug';
+
+type MigrationContext = QueryInterface;
+
+export async function up({ context }: MigrationParams<MigrationContext>): Promise<void> {
+  await context.sequelize.transaction(async (transaction) => {
+    await context.addIndex(
+      'engineering_run_evidence',
+      [
+        { name: 'recorded_at', order: 'DESC' },
+        { name: 'sequence', order: 'DESC' },
+        { name: 'run_id', order: 'DESC' },
+      ],
+      {
+        name: 'idx_engineering_run_evidence_latest',
+        transaction,
+      },
+    );
+  });
+}
+
+export async function down({ context }: MigrationParams<MigrationContext>): Promise<void> {
+  await context.sequelize.transaction(async (transaction) => {
+    await context.removeIndex(
+      'engineering_run_evidence',
+      'idx_engineering_run_evidence_latest',
+      { transaction },
+    );
+  });
+}
