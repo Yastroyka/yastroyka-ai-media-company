@@ -26,6 +26,11 @@ import {
   up as analyticsAttributionUp,
 } from '../migrations/0005-analytics-attribution.ts';
 
+import {
+  down as controlRoomDiscoveryIndexesDown,
+  up as controlRoomDiscoveryIndexesUp,
+} from '../migrations/0006-control-room-discovery-indexes.ts';
+
 export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
   return new Umzug<QueryInterface>({
     migrations: [
@@ -53,6 +58,11 @@ export function createMigrator(database: Sequelize): Umzug<QueryInterface> {
         name: '0005-analytics-attribution',
         up: analyticsAttributionUp,
         down: analyticsAttributionDown,
+      },
+      {
+        name: '0006-control-room-discovery-indexes',
+        up: controlRoomDiscoveryIndexesUp,
+        down: controlRoomDiscoveryIndexesDown,
       },
     ],
     context: database.getQueryInterface(),
