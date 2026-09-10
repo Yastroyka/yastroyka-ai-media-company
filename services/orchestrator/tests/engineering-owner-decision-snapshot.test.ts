@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EngineeringRunStateMachine, type EngineeringRunState } from '../src/engineering-run.ts';
+import {
+  EngineeringRunStateMachine,
+  type EngineeringRunState,
+} from '../src/engineering-run.ts';
 
 const BASE_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const HEAD_SHA = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
