@@ -6,7 +6,8 @@ Build the first real Nuxt/Vue operational shell for YASTROYKA Control Room over 
 ## BASELINE
 - exact base `main`: `cb0bf1040457b82918352012c5a63868ce355527`;
 - task branch: `feat/task-008-control-room-shell`;
-- approved development origin: `https://dev.yastroyka.online`;
+- AI-factory development domain: not assigned;
+- `https://dev.yastroyka.online` belongs to development of the main YASTROYKA project and is outside the Control Room / AI-factory infrastructure boundary;
 - `apps/control-room` currently contains only a placeholder.
 
 ## AUTHORITY
@@ -27,7 +28,7 @@ Build the first real Nuxt/Vue operational shell for YASTROYKA Control Room over 
 - return only sanitized `UNAVAILABLE` reason codes when the backend is absent or invalid;
 - show dashes and explicit unavailable messages instead of fabricated counts or statuses;
 - add noindex/nofollow and baseline defensive response headers;
-- document the development origin and non-secret runtime configuration;
+- document non-secret runtime configuration without assigning or inventing an AI-factory domain;
 - add contract tests and CI typecheck/test/build gates.
 
 ## OUT OF SCOPE
@@ -53,7 +54,7 @@ R2. The change is reversible and non-production, but introduces a new web depend
 - an absent/misconfigured/unreachable/rejecting/invalid backend produces a sanitized UNAVAILABLE state;
 - the page never shows invented operational numbers;
 - approvals, incidents, VK Community, VK Video, MAX, and Model Exchange are visibly represented;
-- `https://dev.yastroyka.online` is recorded only as non-secret development-origin configuration;
+- no AI-factory domain is invented or assigned by TASK-008; `https://dev.yastroyka.online` is explicitly outside the AI-factory boundary;
 - final diff contains no temporary diagnostic workflow.
 
 ## REQUIRED TESTS
