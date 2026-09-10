@@ -8,7 +8,8 @@ import type {
   EngineeringRunStatus,
 } from './engineering-run.ts';
 
-export const ENGINEERING_OWNER_DECISION_SCHEMA_VERSION = 'engineering-owner-decision/v1' as const;
+export const ENGINEERING_OWNER_DECISION_SCHEMA_VERSION =
+  'engineering-owner-decision/v1' as const;
 
 export interface EngineeringOwnerDecisionSnapshot {
   readonly schemaVersion: typeof ENGINEERING_OWNER_DECISION_SCHEMA_VERSION;
@@ -33,7 +34,9 @@ export interface EngineeringOwnerDecisionSnapshot {
   readonly blockerReason: string | null;
 }
 
-function cloneModelSelection(selection: EngineeringModelSelection | null): EngineeringModelSelection | null {
+function cloneModelSelection(
+  selection: EngineeringModelSelection | null,
+): EngineeringModelSelection | null {
   if (selection === null) {
     return null;
   }
