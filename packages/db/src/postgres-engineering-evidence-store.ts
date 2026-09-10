@@ -149,7 +149,8 @@ function normalizeRow(row: {
     sequence: Number(row.sequence),
     eventType: String(row.event_type),
     payload: parseJsonPayload(row.payload),
-    recordedAt: row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
+    recordedAt:
+      row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
   });
 }
 
@@ -227,7 +228,12 @@ export class PostgresEngineeringEvidenceStore {
         },
       );
 
-      const persisted = await readEntry(this.#database, record.runId, record.sequence, transaction);
+      const persisted = await readEntry(
+        this.#database,
+        record.runId,
+        record.sequence,
+        transaction,
+      );
       if (persisted === null) {
         throw new Error('Engineering evidence was not persisted.');
       }
