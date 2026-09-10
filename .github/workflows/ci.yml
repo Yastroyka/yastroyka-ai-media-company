@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: TASK-026 Prettier output probe
+        run: pnpm exec prettier services/orchestrator/src/engineering-owner-decision-snapshot.ts
+
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
