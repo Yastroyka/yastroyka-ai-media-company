@@ -47,6 +47,22 @@ test('TASK-028 discovers the latest engineering evidence deterministically', asy
       `DELETE FROM engineering_run_evidence WHERE run_id LIKE 'task-028-engineering-run-%';`,
     );
 
+    await t.test('global latest lookup has a dedicated deterministic index', async () => {
+      const [indexes] = await database.query(`
+        SELECT indexdef
+        FROM pg_catalog.pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename = 'engineering_run_evidence'
+          AND indexname = 'idx_engineering_run_evidence_latest';
+      `);
+
+      assert.equal(indexes.length, 1);
+      assert.match(
+        String((indexes[0] as { indexdef?: unknown }).indexdef),
+        /\(recorded_at DESC, sequence DESC, run_id DESC\)/u,
+      );
+    });
+
     const store = createPostgresEngineeringEvidenceStore(database);
 
     await store.record(
