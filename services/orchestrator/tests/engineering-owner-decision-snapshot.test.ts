@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EngineeringRunStateMachine } from '../src/engineering-run.ts';
+import { EngineeringRunStateMachine, type EngineeringRunState } from '../src/engineering-run.ts';
 
 const BASE_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const HEAD_SHA = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
@@ -10,7 +10,7 @@ async function loadSnapshotModule() {
   return import('../src/engineering-owner-decision-snapshot.ts').catch(() => null);
 }
 
-function readyState() {
+function readyState(): EngineeringRunState {
   const machine = new EngineeringRunStateMachine({
     runId: 'run-task-026-001',
     taskId: 'TASK-026',
@@ -85,4 +85,72 @@ test('TASK-026 projects a decision-ready engineering run into one exact owner-fa
     },
     blockerReason: null,
   });
+});
+
+test('TASK-026 rejects malformed observation time instead of publishing ambiguous evidence', async () => {
+  const snapshotModule = await loadSnapshotModule();
+  assert.notEqual(snapshotModule, null);
+
+  assert.throws(
+    () => snapshotModule!.createEngineeringOwnerDecisionSnapshot(readyState(), 'not-a-timestamp'),
+    /invalid engineering owner decision snapshot/u,
+  );
+});
+
+test('TASK-026 rejects forged owner-ready state when exact owner evidence is incomplete', async () => {
+  const snapshotModule = await loadSnapshotModule();
+  assert.notEqual(snapshotModule, null);
+
+  const valid = readyState();
+  const forgedStates: EngineeringRunState[] = [
+    { ...valid, pullRequest: null },
+    {
+      ...valid,
+      validationEvidence: [{ name: 'Quality', conclusion: 'failed' }],
+    },
+    { ...valid, decisionState: 'PENDING' },
+  ];
+
+  for (const state of forgedStates) {
+    assert.throws(
+      () =>
+        snapshotModule!.createEngineeringOwnerDecisionSnapshot(
+          state,
+          '2026-09-10T00:00:00.000Z',
+        ),
+      /invalid engineering owner decision snapshot/u,
+    );
+  }
+});
+
+test('TASK-026 rejects blocked and pending decision-state contradictions', async () => {
+  const snapshotModule = await loadSnapshotModule();
+  assert.notEqual(snapshotModule, null);
+
+  const valid = readyState();
+  const invalidStates: EngineeringRunState[] = [
+    {
+      ...valid,
+      status: 'blocked',
+      decisionState: 'BLOCKED',
+      blockerReason: null,
+    },
+    {
+      ...valid,
+      status: 'executing',
+      decisionState: 'PENDING',
+      blockerReason: 'must not leak a stale blocker into a pending run',
+    },
+  ];
+
+  for (const state of invalidStates) {
+    assert.throws(
+      () =>
+        snapshotModule!.createEngineeringOwnerDecisionSnapshot(
+          state,
+          '2026-09-10T00:00:00.000Z',
+        ),
+      /invalid engineering owner decision snapshot/u,
+    );
+  }
 });
