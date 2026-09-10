@@ -33,6 +33,82 @@ export interface EngineeringOwnerDecisionSnapshot {
   readonly blockerReason: string | null;
 }
 
+const SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const INVALID_SNAPSHOT = 'invalid engineering owner decision snapshot';
+
+function failClosed(): never {
+  throw new Error(INVALID_SNAPSHOT);
+}
+
+function isCanonicalTimestamp(value: string): boolean {
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString() === value;
+}
+
+function hasExactPassedValidation(state: EngineeringRunState): boolean {
+  if (state.requiredChecks.length === 0) {
+    return false;
+  }
+
+  const evidenceByName = new Map<string, EngineeringCheckEvidence>();
+  for (const evidence of state.validationEvidence) {
+    if (evidenceByName.has(evidence.name)) {
+      return false;
+    }
+    evidenceByName.set(evidence.name, evidence);
+  }
+
+  return state.requiredChecks.every(
+    (requiredCheck) => evidenceByName.get(requiredCheck)?.conclusion === 'passed',
+  );
+}
+
+function assertOwnerDecisionConsistency(state: EngineeringRunState, observedAt: string): void {
+  if (!isCanonicalTimestamp(observedAt)) {
+    failClosed();
+  }
+
+  const claimsOwnerReady =
+    state.status === 'ready_for_owner_decision' ||
+    state.decisionState === 'READY_FOR_OWNER_DECISION';
+
+  if (claimsOwnerReady) {
+    const pullRequest = state.pullRequest;
+    if (
+      state.status !== 'ready_for_owner_decision' ||
+      state.decisionState !== 'READY_FOR_OWNER_DECISION' ||
+      state.modelSelection === null ||
+      pullRequest === null ||
+      !Number.isInteger(pullRequest.number) ||
+      pullRequest.number < 1 ||
+      !SHA_PATTERN.test(pullRequest.headSha) ||
+      pullRequest.draft !== true ||
+      state.blockerReason !== null ||
+      !hasExactPassedValidation(state)
+    ) {
+      failClosed();
+    }
+    return;
+  }
+
+  const claimsBlocked = state.status === 'blocked' || state.decisionState === 'BLOCKED';
+  if (claimsBlocked) {
+    if (
+      state.status !== 'blocked' ||
+      state.decisionState !== 'BLOCKED' ||
+      state.blockerReason === null ||
+      state.blockerReason.trim().length === 0
+    ) {
+      failClosed();
+    }
+    return;
+  }
+
+  if (state.decisionState !== 'PENDING' || state.blockerReason !== null) {
+    failClosed();
+  }
+}
+
 function cloneModelSelection(
   selection: EngineeringModelSelection | null,
 ): EngineeringModelSelection | null {
@@ -50,6 +126,8 @@ export function createEngineeringOwnerDecisionSnapshot(
   state: EngineeringRunState,
   observedAt: string,
 ): EngineeringOwnerDecisionSnapshot {
+  assertOwnerDecisionConsistency(state, observedAt);
+
   return {
     schemaVersion: ENGINEERING_OWNER_DECISION_SCHEMA_VERSION,
     observedAt,
