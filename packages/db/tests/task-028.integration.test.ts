@@ -14,12 +14,7 @@ const { createMigrator } = await import('../src/migrator.ts');
 const { createPostgresEngineeringEvidenceStore } =
   await import('../src/postgres-engineering-evidence-store.ts');
 
-function engineeringEvidence(
-  runId: string,
-  sequence: number,
-  recordedAt: string,
-  status: string,
-) {
+function engineeringEvidence(runId: string, sequence: number, recordedAt: string, status: string) {
   return {
     runId,
     sequence,
@@ -61,12 +56,7 @@ test('TASK-028 discovers the latest engineering evidence deterministically', asy
       engineeringEvidence(LATEST_RUN_ID, 1, '2026-09-10T13:00:00.000Z', 'approved'),
     );
     await store.record(
-      engineeringEvidence(
-        LATEST_RUN_ID,
-        2,
-        '2026-09-10T13:00:00.000Z',
-        'ready_for_owner_decision',
-      ),
+      engineeringEvidence(LATEST_RUN_ID, 2, '2026-09-10T13:00:00.000Z', 'ready_for_owner_decision'),
     );
 
     await t.test('newest timestamp wins and sequence breaks ties within the run', async () => {
