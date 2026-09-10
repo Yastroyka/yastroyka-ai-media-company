@@ -1,0 +1,29 @@
+upstream: mattpocock/skills
+commit: 6654f6b60cd9d5be8b54c6fafe44346dabeb3b76
+license: MIT
+adoption: selective-adapt
+update_policy: reviewed-pr-only
+project_scope: yastroyka-ai-factory
+registry_mode: documentation-pointer-only
+methods:
+  tdd: ADAPT
+  diagnosing-bugs: ADAPT
+  code-review: ADAPT
+  domain-modeling: ADAPT
+  handoff: ADAPT
+target_paths:
+  - docs/agents/matt-engineering-methods.md
+  - docs/agents/matt-pocock-skills.md
+excluded_to_avoid_workflow_conflicts:
+  - triage
+  - to-spec
+  - to-tickets
+  - implement
+  - wayfinder
+  - wizard
+  - implement-spec
+notes: >-
+  This repository is the YASTROYKA AI factory / AI Media Company, not the
+  separate YASTROYKA marketplace/site product. The owned .agents/skills registry
+  remains unchanged. Constitution/ADR/contracts/task bootstrap/security/evidence/release
+  workflows remain authoritative. No floating latest updates.
