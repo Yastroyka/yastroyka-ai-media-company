@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  EngineeringRunStateMachine,
-  type EngineeringRunState,
-} from '../src/engineering-run.ts';
+import { EngineeringRunStateMachine, type EngineeringRunState } from '../src/engineering-run.ts';
 
 const BASE_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const HEAD_SHA = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
@@ -117,10 +114,7 @@ test('TASK-026 rejects forged owner-ready state when exact owner evidence is inc
   for (const state of forgedStates) {
     assert.throws(
       () =>
-        snapshotModule!.createEngineeringOwnerDecisionSnapshot(
-          state,
-          '2026-09-10T00:00:00.000Z',
-        ),
+        snapshotModule!.createEngineeringOwnerDecisionSnapshot(state, '2026-09-10T00:00:00.000Z'),
       /invalid engineering owner decision snapshot/u,
     );
   }
@@ -149,10 +143,7 @@ test('TASK-026 rejects blocked and pending decision-state contradictions', async
   for (const state of invalidStates) {
     assert.throws(
       () =>
-        snapshotModule!.createEngineeringOwnerDecisionSnapshot(
-          state,
-          '2026-09-10T00:00:00.000Z',
-        ),
+        snapshotModule!.createEngineeringOwnerDecisionSnapshot(state, '2026-09-10T00:00:00.000Z'),
       /invalid engineering owner decision snapshot/u,
     );
   }
