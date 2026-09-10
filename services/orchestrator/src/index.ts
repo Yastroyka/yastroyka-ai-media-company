@@ -32,6 +32,12 @@ export {
 } from './engineering-run.ts';
 
 export {
+  ENGINEERING_OWNER_DECISION_SCHEMA_VERSION,
+  createEngineeringOwnerDecisionSnapshot,
+  type EngineeringOwnerDecisionSnapshot,
+} from './engineering-owner-decision-snapshot.ts';
+
+export {
   EngineeringProviderUnavailableError,
   EngineeringRunner,
   type EngineeringAuthorizationPort,
