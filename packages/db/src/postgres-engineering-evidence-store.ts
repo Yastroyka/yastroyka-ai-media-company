@@ -228,12 +228,7 @@ export class PostgresEngineeringEvidenceStore {
         },
       );
 
-      const persisted = await readEntry(
-        this.#database,
-        record.runId,
-        record.sequence,
-        transaction,
-      );
+      const persisted = await readEntry(this.#database, record.runId, record.sequence, transaction);
       if (persisted === null) {
         throw new Error('Engineering evidence was not persisted.');
       }
