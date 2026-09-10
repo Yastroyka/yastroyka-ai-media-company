@@ -148,3 +148,27 @@ test('TASK-026 rejects blocked and pending decision-state contradictions', async
     );
   }
 });
+
+test('TASK-026 returns detached nested evidence that cannot mutate canonical source state', async () => {
+  const snapshotModule = await loadSnapshotModule();
+  assert.notEqual(snapshotModule, null);
+
+  const state = readyState();
+  const snapshot = snapshotModule!.createEngineeringOwnerDecisionSnapshot(
+    state,
+    '2026-09-10T00:00:00.000Z',
+  );
+
+  (snapshot.modelSelection!.fallbackProviders as string[]).push('kimi');
+  (snapshot.validation.requiredChecks as string[]).push('Injected');
+  (
+    snapshot.validation.evidence as Array<{
+      name: string;
+      conclusion: 'passed' | 'failed' | 'not_run';
+    }>
+  )[0]!.name = 'Changed';
+
+  assert.deepEqual(state.modelSelection?.fallbackProviders, ['qwen']);
+  assert.deepEqual(state.requiredChecks, ['Quality']);
+  assert.deepEqual(state.validationEvidence, [{ name: 'Quality', conclusion: 'passed' }]);
+});
