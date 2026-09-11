@@ -62,21 +62,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TASK-028 canonical Prettier diff probe
-        run: |
-          pnpm exec prettier --write \
-            packages/db/migrations/0006-control-room-discovery-indexes.ts \
-            packages/db/src/postgres-engineering-evidence-store.ts \
-            packages/db/tests/task-028-approval.integration.test.ts \
-            packages/db/tests/task-028.integration.test.ts
-          echo '--- TASK-028 PRETTIER DIFF BEGIN ---'
-          git diff -- \
-            packages/db/migrations/0006-control-room-discovery-indexes.ts \
-            packages/db/src/postgres-engineering-evidence-store.ts \
-            packages/db/tests/task-028-approval.integration.test.ts \
-            packages/db/tests/task-028.integration.test.ts
-          echo '--- TASK-028 PRETTIER DIFF END ---'
-
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
