@@ -62,24 +62,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TASK-028 canonical Prettier base64 probe
+      - name: TASK-028 canonical Prettier diff probe
         run: |
-          echo 'TASK028_MIGRATION_BEGIN'
-          pnpm exec prettier packages/db/migrations/0006-control-room-discovery-indexes.ts | base64 -w0
-          echo
-          echo 'TASK028_MIGRATION_END'
-          echo 'TASK028_ENGINEERING_BEGIN'
-          pnpm exec prettier packages/db/src/postgres-engineering-evidence-store.ts | base64 -w0
-          echo
-          echo 'TASK028_ENGINEERING_END'
-          echo 'TASK028_APPROVAL_TEST_BEGIN'
-          pnpm exec prettier packages/db/tests/task-028-approval.integration.test.ts | base64 -w0
-          echo
-          echo 'TASK028_APPROVAL_TEST_END'
-          echo 'TASK028_DISCOVERY_TEST_BEGIN'
-          pnpm exec prettier packages/db/tests/task-028.integration.test.ts | base64 -w0
-          echo
-          echo 'TASK028_DISCOVERY_TEST_END'
+          pnpm exec prettier --write \
+            packages/db/migrations/0006-control-room-discovery-indexes.ts \
+            packages/db/src/postgres-engineering-evidence-store.ts \
+            packages/db/tests/task-028-approval.integration.test.ts \
+            packages/db/tests/task-028.integration.test.ts
+          echo '--- TASK-028 PRETTIER DIFF BEGIN ---'
+          git diff -- \
+            packages/db/migrations/0006-control-room-discovery-indexes.ts \
+            packages/db/src/postgres-engineering-evidence-store.ts \
+            packages/db/tests/task-028-approval.integration.test.ts \
+            packages/db/tests/task-028.integration.test.ts
+          echo '--- TASK-028 PRETTIER DIFF END ---'
 
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
