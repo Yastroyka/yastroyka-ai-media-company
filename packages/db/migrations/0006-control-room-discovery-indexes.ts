@@ -19,10 +19,8 @@ export async function up({ context }: MigrationParams<MigrationContext>): Promis
 
 export async function down({ context }: MigrationParams<MigrationContext>): Promise<void> {
   await context.sequelize.transaction(async (transaction) => {
-    await context.removeIndex(
-      'engineering_run_evidence',
-      'idx_engineering_run_evidence_latest',
-      { transaction },
-    );
+    await context.removeIndex('engineering_run_evidence', 'idx_engineering_run_evidence_latest', {
+      transaction,
+    });
   });
 }
