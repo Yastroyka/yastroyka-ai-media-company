@@ -146,6 +146,23 @@ export class PostgresDecisionTraceStore implements DecisionTraceStore {
 
     return readTrace(this.#database, requestId);
   }
+
+  async findLatest(): Promise<RoutingDecisionTrace | null> {
+    const [rows] = await this.#database.query(`
+      SELECT payload
+      FROM routing_decisions
+      ORDER BY created_at DESC, request_id DESC
+      LIMIT 1;
+    `);
+
+    const row = rows[0] as { payload?: unknown } | undefined;
+
+    if (row?.payload === undefined) {
+      return null;
+    }
+
+    return parseRoutingDecisionTrace(parseJsonPayload(row.payload));
+  }
 }
 
 export class PostgresCapabilityRegistry implements CapabilityRegistry {
