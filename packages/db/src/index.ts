@@ -14,6 +14,12 @@ export {
 export { createPostgresAuthorizationAuditSink } from './postgres-authorization-audit-sink.ts';
 
 export {
+  PostgresApprovalDiscoveryStore,
+  createPostgresApprovalDiscoveryStore,
+  type PendingApprovalSummary,
+} from './postgres-approval-discovery-store.ts';
+
+export {
   EngineeringEvidenceConflictError,
   PostgresEngineeringEvidenceStore,
   createPostgresEngineeringEvidenceStore,
