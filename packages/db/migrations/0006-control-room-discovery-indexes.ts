@@ -3,7 +3,9 @@ import type { MigrationParams } from 'umzug';
 
 type MigrationContext = QueryInterface;
 
-export async function up({ context }: MigrationParams<MigrationContext>): Promise<void> {
+export async function up({
+  context,
+}: MigrationParams<MigrationContext>): Promise<void> {
   await context.sequelize.transaction(async (transaction) => {
     await context.addIndex('engineering_run_evidence', {
       fields: [
@@ -17,7 +19,9 @@ export async function up({ context }: MigrationParams<MigrationContext>): Promis
   });
 }
 
-export async function down({ context }: MigrationParams<MigrationContext>): Promise<void> {
+export async function down({
+  context,
+}: MigrationParams<MigrationContext>): Promise<void> {
   await context.sequelize.transaction(async (transaction) => {
     await context.removeIndex(
       'engineering_run_evidence',
