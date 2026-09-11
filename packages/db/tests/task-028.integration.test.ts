@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  createRoutingDecisionTrace,
-  type CapabilityRecord,
-} from '@yastroyka/model-exchange';
+import { createRoutingDecisionTrace, type CapabilityRecord } from '@yastroyka/model-exchange';
 
 const TEST_DATABASE_HOST = '127.0.0.1';
 const TEST_DATABASE_NAME = 'yastroyka_r1_test';
@@ -149,7 +146,9 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
   try {
     const migrator = createMigrator(database);
     await migrator.up();
-    await database.query(`DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`);
+    await database.query(
+      `DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`,
+    );
 
     const store = createPostgresDecisionTraceStore(database);
 
@@ -175,34 +174,43 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
       ),
     );
 
-    await t.test('newest decision uses request id as a deterministic timestamp tie-break', async () => {
-      const latest = await store.findLatest();
+    await t.test(
+      'newest decision uses request id as a deterministic timestamp tie-break',
+      async () => {
+        const latest = await store.findLatest();
 
-      assert.notEqual(latest, null);
-      assert.equal(latest?.request_id, `${ROUTING_REQUEST_PREFIX}tie-b`);
-      assert.equal(latest?.decision_id, '00000000-0000-4000-8000-000000000283');
-      assert.equal(latest?.winner.model_id, 'task028-routing-model-a');
-    });
+        assert.notEqual(latest, null);
+        assert.equal(latest?.request_id, `${ROUTING_REQUEST_PREFIX}tie-b`);
+        assert.equal(latest?.decision_id, '00000000-0000-4000-8000-000000000283');
+        assert.equal(latest?.winner.model_id, 'task028-routing-model-a');
+      },
+    );
 
-    await t.test('malformed persisted latest decision fails closed through canonical parsing', async () => {
-      await database.query(
-        `
+    await t.test(
+      'malformed persisted latest decision fails closed through canonical parsing',
+      async () => {
+        await database.query(
+          `
           UPDATE routing_decisions
           SET payload = CAST('{"invalid":true}' AS jsonb),
               created_at = TIMESTAMPTZ '2026-09-10T14:00:00.000Z'
           WHERE request_id = '${ROUTING_REQUEST_PREFIX}older';
         `,
-      );
+        );
 
-      await assert.rejects(store.findLatest());
-    });
+        await assert.rejects(store.findLatest());
+      },
+    );
 
-    await t.test('empty routing decisions return null instead of inventing a decision', async () => {
-      await database.query(
-        `DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`,
-      );
-      assert.equal(await store.findLatest(), null);
-    });
+    await t.test(
+      'empty routing decisions return null instead of inventing a decision',
+      async () => {
+        await database.query(
+          `DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`,
+        );
+        assert.equal(await store.findLatest(), null);
+      },
+    );
   } finally {
     await database
       .query(`DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`)
