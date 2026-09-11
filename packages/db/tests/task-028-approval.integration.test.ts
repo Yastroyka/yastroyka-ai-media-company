@@ -7,7 +7,8 @@ const TEST_DATABASE_NAME = 'yastroyka_r1_test';
 process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
 process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
 
-const { createDatabaseConnection, createReadOnlyDatabaseConnection } = await import('../src/connection.ts');
+const { createDatabaseConnection, createReadOnlyDatabaseConnection } =
+  await import('../src/connection.ts');
 const { createMigrator } = await import('../src/migrator.ts');
 const { createPostgresApprovalDiscoveryStore } =
   await import('../src/postgres-approval-discovery-store.ts');
@@ -67,15 +68,18 @@ test('TASK-028 summarizes pending owner approvals through a read-only connection
 
     const store = createPostgresApprovalDiscoveryStore(readOnlyDatabase);
 
-    await t.test('counts only pending approvals and returns the oldest pending timestamp', async () => {
-      const summary = await store.getPendingSummary();
+    await t.test(
+      'counts only pending approvals and returns the oldest pending timestamp',
+      async () => {
+        const summary = await store.getPendingSummary();
 
-      assert.deepEqual(summary, {
-        waitingCount: 2,
-        oldestWaitingAt: '2026-09-10T11:00:00.000Z',
-      });
-      assert.deepEqual(Object.keys(summary).sort(), ['oldestWaitingAt', 'waitingCount']);
-    });
+        assert.deepEqual(summary, {
+          waitingCount: 2,
+          oldestWaitingAt: '2026-09-10T11:00:00.000Z',
+        });
+        assert.deepEqual(Object.keys(summary).sort(), ['oldestWaitingAt', 'waitingCount']);
+      },
+    );
 
     await t.test('empty pending queue returns zero and null without inventing state', async () => {
       await database.query("DELETE FROM approvals WHERE status = 'PENDING';");
