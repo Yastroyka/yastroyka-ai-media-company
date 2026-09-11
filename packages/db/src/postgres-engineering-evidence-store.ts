@@ -149,7 +149,8 @@ function normalizeRow(row: {
     sequence: Number(row.sequence),
     eventType: String(row.event_type),
     payload: parseJsonPayload(row.payload),
-    recordedAt: row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
+    recordedAt:
+      row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
   });
 }
 
