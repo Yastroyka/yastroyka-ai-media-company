@@ -5,14 +5,15 @@ type MigrationContext = QueryInterface;
 
 export async function up({ context }: MigrationParams<MigrationContext>): Promise<void> {
   await context.sequelize.transaction(async (transaction) => {
-    await context.addIndex(
-      'engineering_run_evidence',
-      ['recorded_at', 'sequence', 'run_id'],
-      {
-        name: 'idx_engineering_run_evidence_latest',
-        transaction,
-      },
-    );
+    await context.addIndex('engineering_run_evidence', {
+      fields: [
+        { name: 'recorded_at', order: 'DESC' as const },
+        { name: 'sequence', order: 'DESC' as const },
+        { name: 'run_id', order: 'DESC' as const },
+      ],
+      name: 'idx_engineering_run_evidence_latest',
+      transaction,
+    });
   });
 }
 
