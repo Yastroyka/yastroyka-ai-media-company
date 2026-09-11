@@ -13,7 +13,8 @@ const ROUTING_VERIFIED_AT = '2026-09-10T11:00:00.000Z';
 process.env.YASTROYKA_DB_HOST = TEST_DATABASE_HOST;
 process.env.YASTROYKA_DB_NAME = TEST_DATABASE_NAME;
 
-const { createDatabaseConnection } = await import('../src/connection.ts');
+const { createDatabaseConnection, createReadOnlyDatabaseConnection } =
+  await import('../src/connection.ts');
 const { createMigrator } = await import('../src/migrator.ts');
 const { createPostgresEngineeringEvidenceStore } =
   await import('../src/postgres-engineering-evidence-store.ts');
@@ -76,6 +77,7 @@ function routingTrace(requestId: string, decisionId: string, createdAt: string) 
 
 test('TASK-028 discovers the latest engineering evidence deterministically', async (t) => {
   const database = createDatabaseConnection();
+  const readOnlyDatabase = createReadOnlyDatabaseConnection();
 
   try {
     const migrator = createMigrator(database);
@@ -85,7 +87,7 @@ test('TASK-028 discovers the latest engineering evidence deterministically', asy
     );
 
     await t.test('global latest lookup has a dedicated deterministic index', async () => {
-      const [indexes] = await database.query(`
+      const [indexes] = await readOnlyDatabase.query(`
         SELECT indexdef
         FROM pg_catalog.pg_indexes
         WHERE schemaname = 'public'
@@ -100,20 +102,21 @@ test('TASK-028 discovers the latest engineering evidence deterministically', asy
       );
     });
 
-    const store = createPostgresEngineeringEvidenceStore(database);
+    const writeStore = createPostgresEngineeringEvidenceStore(database);
+    const readStore = createPostgresEngineeringEvidenceStore(readOnlyDatabase);
 
-    await store.record(
+    await writeStore.record(
       engineeringEvidence(OLDER_RUN_ID, 1, '2026-09-10T12:00:00.000Z', 'approved'),
     );
-    await store.record(
+    await writeStore.record(
       engineeringEvidence(LATEST_RUN_ID, 1, '2026-09-10T13:00:00.000Z', 'approved'),
     );
-    await store.record(
+    await writeStore.record(
       engineeringEvidence(LATEST_RUN_ID, 2, '2026-09-10T13:00:00.000Z', 'ready_for_owner_decision'),
     );
 
     await t.test('newest timestamp wins and sequence breaks ties within the run', async () => {
-      const latest = await store.findLatest();
+      const latest = await readStore.findLatest();
 
       assert.notEqual(latest, null);
       assert.equal(latest?.runId, LATEST_RUN_ID);
@@ -129,19 +132,21 @@ test('TASK-028 discovers the latest engineering evidence deterministically', asy
       await database.query(
         `DELETE FROM engineering_run_evidence WHERE run_id LIKE 'task-028-engineering-run-%';`,
       );
-      const latest = await store.findLatest();
+      const latest = await readStore.findLatest();
       assert.equal(latest, null);
     });
   } finally {
     await database
       .query(`DELETE FROM engineering_run_evidence WHERE run_id LIKE 'task-028-engineering-run-%';`)
       .catch(() => undefined);
+    await readOnlyDatabase.close().catch(() => undefined);
     await database.close();
   }
 });
 
 test('TASK-028 discovers the latest Model Exchange decision fail-closed', async (t) => {
   const database = createDatabaseConnection();
+  const readOnlyDatabase = createReadOnlyDatabaseConnection();
 
   try {
     const migrator = createMigrator(database);
@@ -150,23 +155,24 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
       `DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`,
     );
 
-    const store = createPostgresDecisionTraceStore(database);
+    const writeStore = createPostgresDecisionTraceStore(database);
+    const readStore = createPostgresDecisionTraceStore(readOnlyDatabase);
 
-    await store.record(
+    await writeStore.record(
       routingTrace(
         `${ROUTING_REQUEST_PREFIX}older`,
         '00000000-0000-4000-8000-000000000281',
         '2026-09-10T12:00:00.000Z',
       ),
     );
-    await store.record(
+    await writeStore.record(
       routingTrace(
         `${ROUTING_REQUEST_PREFIX}tie-a`,
         '00000000-0000-4000-8000-000000000282',
         '2026-09-10T13:00:00.000Z',
       ),
     );
-    await store.record(
+    await writeStore.record(
       routingTrace(
         `${ROUTING_REQUEST_PREFIX}tie-b`,
         '00000000-0000-4000-8000-000000000283',
@@ -177,7 +183,7 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
     await t.test(
       'newest decision uses request id as a deterministic timestamp tie-break',
       async () => {
-        const latest = await store.findLatest();
+        const latest = await readStore.findLatest();
 
         assert.notEqual(latest, null);
         assert.equal(latest?.request_id, `${ROUTING_REQUEST_PREFIX}tie-b`);
@@ -198,7 +204,7 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
         `,
         );
 
-        await assert.rejects(store.findLatest());
+        await assert.rejects(readStore.findLatest());
       },
     );
 
@@ -208,13 +214,14 @@ test('TASK-028 discovers the latest Model Exchange decision fail-closed', async 
         await database.query(
           `DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`,
         );
-        assert.equal(await store.findLatest(), null);
+        assert.equal(await readStore.findLatest(), null);
       },
     );
   } finally {
     await database
       .query(`DELETE FROM routing_decisions WHERE request_id LIKE '${ROUTING_REQUEST_PREFIX}%';`)
       .catch(() => undefined);
+    await readOnlyDatabase.close().catch(() => undefined);
     await database.close();
   }
 });
