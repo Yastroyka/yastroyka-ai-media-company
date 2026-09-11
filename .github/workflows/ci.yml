@@ -62,6 +62,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: TASK-028 migration Prettier diff probe
+        run: |
+          cp packages/db/migrations/0006-control-room-discovery-indexes.ts /tmp/task028-before.ts
+          pnpm exec prettier --write packages/db/migrations/0006-control-room-discovery-indexes.ts
+          echo '--- TASK-028 MIGRATION PRETTIER DIFF BEGIN ---'
+          diff -u /tmp/task028-before.ts packages/db/migrations/0006-control-room-discovery-indexes.ts || true
+          echo '--- TASK-028 MIGRATION PRETTIER DIFF END ---'
+
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
