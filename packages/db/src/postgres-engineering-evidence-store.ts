@@ -137,6 +137,23 @@ function fingerprint(record: DurableEngineeringEvidenceRecord): string {
   );
 }
 
+function normalizeRow(row: {
+  run_id: unknown;
+  sequence: unknown;
+  event_type: unknown;
+  payload: unknown;
+  recorded_at: unknown;
+}): DurableEngineeringEvidenceRecord {
+  return validateRecord({
+    runId: String(row.run_id),
+    sequence: Number(row.sequence),
+    eventType: String(row.event_type),
+    payload: parseJsonPayload(row.payload),
+    recordedAt:
+      row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
+  });
+}
+
 async function readEntry(
   database: Sequelize,
   runId: string,
@@ -166,18 +183,7 @@ async function readEntry(
       }
     | undefined;
 
-  if (row === undefined) {
-    return null;
-  }
-
-  return validateRecord({
-    runId: String(row.run_id),
-    sequence: Number(row.sequence),
-    eventType: String(row.event_type),
-    payload: parseJsonPayload(row.payload),
-    recordedAt:
-      row.recorded_at instanceof Date ? row.recorded_at.toISOString() : String(row.recorded_at),
-  });
+  return row === undefined ? null : normalizeRow(row);
 }
 
 export class PostgresEngineeringEvidenceStore {
@@ -246,26 +252,38 @@ export class PostgresEngineeringEvidenceStore {
       { bind: { runId } },
     );
 
-    return rows.map((row) => {
-      const evidence = row as {
-        run_id: unknown;
-        sequence: unknown;
-        event_type: unknown;
-        payload: unknown;
-        recorded_at: unknown;
-      };
+    return rows.map((row) =>
+      normalizeRow(
+        row as {
+          run_id: unknown;
+          sequence: unknown;
+          event_type: unknown;
+          payload: unknown;
+          recorded_at: unknown;
+        },
+      ),
+    );
+  }
 
-      return validateRecord({
-        runId: String(evidence.run_id),
-        sequence: Number(evidence.sequence),
-        eventType: String(evidence.event_type),
-        payload: parseJsonPayload(evidence.payload),
-        recordedAt:
-          evidence.recorded_at instanceof Date
-            ? evidence.recorded_at.toISOString()
-            : String(evidence.recorded_at),
-      });
-    });
+  async findLatest(): Promise<DurableEngineeringEvidenceRecord | null> {
+    const [rows] = await this.#database.query(`
+      SELECT run_id, sequence, event_type, payload, recorded_at
+      FROM engineering_run_evidence
+      ORDER BY recorded_at DESC, sequence DESC, run_id DESC
+      LIMIT 1;
+    `);
+
+    const row = rows[0] as
+      | {
+          run_id: unknown;
+          sequence: unknown;
+          event_type: unknown;
+          payload: unknown;
+          recorded_at: unknown;
+        }
+      | undefined;
+
+    return row === undefined ? null : normalizeRow(row);
   }
 }
 
