@@ -62,17 +62,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TASK-027 contract Prettier diff probe
-        run: |
-          pnpm exec prettier --write \
-            apps/control-room/shared/control-room-contract.ts \
-            apps/control-room/app/pages/index.vue
-          echo '--- TASK-027 CONTRACT PRETTIER DIFF BEGIN ---'
-          git diff -- \
-            apps/control-room/shared/control-room-contract.ts \
-            apps/control-room/app/pages/index.vue
-          echo '--- TASK-027 CONTRACT PRETTIER DIFF END ---'
-
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
