@@ -62,6 +62,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: TASK-027 Prettier diff probe
+        run: |
+          pnpm exec prettier --write services/api/src/control-room-overview.ts
+          echo '--- TASK-027 PRETTIER DIFF BEGIN ---'
+          git diff -- services/api/src/control-room-overview.ts
+          echo '--- TASK-027 PRETTIER DIFF END ---'
+
       - name: Run R1 Golden Evals Release Gate
         run: pnpm run release:gate:r1
         env:
