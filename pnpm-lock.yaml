@@ -99,6 +99,16 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
 
+  services/api:
+    dependencies:
+      '@yastroyka/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+
   services/commerce-bridge:
     dependencies:
       '@yastroyka/commerce-sdk':

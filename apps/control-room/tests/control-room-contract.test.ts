@@ -20,10 +20,16 @@ function validReadyEnvelope(): unknown {
         oldestWaitingAt: NOW,
       },
       incidents: {
-        state: 'DEGRADED',
-        openCount: 2,
-        criticalCount: 1,
-        newestIncidentAt: NOW,
+        state: 'UNKNOWN',
+        openCount: null,
+        criticalCount: null,
+        newestIncidentAt: null,
+      },
+      engineering: {
+        state: 'UNKNOWN',
+        runId: null,
+        eventType: null,
+        observedAt: null,
       },
       workspaces: [
         {
@@ -78,16 +84,16 @@ test('rejects unknown top-level fields and fake source authority', () => {
   assert.equal(isControlRoomReadyEnvelope(wrongSource), false);
 });
 
-test('rejects malformed counts, timestamps, and duplicate workspaces', () => {
+test('rejects fabricated UNKNOWN incident counts and duplicate workspaces', () => {
   const malformed = validReadyEnvelope() as {
     data: {
-      incidents: { openCount: number; criticalCount: number };
+      incidents: { state: string; openCount: number | null; criticalCount: number | null };
       workspaces: Array<Record<string, unknown>>;
     };
   };
 
-  malformed.data.incidents.openCount = 1;
-  malformed.data.incidents.criticalCount = 2;
+  malformed.data.incidents.openCount = 0;
+  malformed.data.incidents.criticalCount = 0;
   malformed.data.workspaces.push({ ...malformed.data.workspaces[0] });
 
   assert.equal(isControlRoomReadyEnvelope(malformed), false);

@@ -18,11 +18,25 @@ export interface ControlRoomApprovalSummary {
   oldestWaitingAt: string | null;
 }
 
-export interface ControlRoomIncidentSummary {
+export type ControlRoomIncidentSummary =
+  | {
+      state: 'UNKNOWN';
+      openCount: null;
+      criticalCount: null;
+      newestIncidentAt: null;
+    }
+  | {
+      state: Exclude<ControlRoomOperationalState, 'UNKNOWN'>;
+      openCount: number;
+      criticalCount: number;
+      newestIncidentAt: string | null;
+    };
+
+export interface ControlRoomEngineeringSummary {
   state: ControlRoomOperationalState;
-  openCount: number;
-  criticalCount: number;
-  newestIncidentAt: string | null;
+  runId: string | null;
+  eventType: string | null;
+  observedAt: string | null;
 }
 
 export interface ControlRoomWorkspaceSummary {
@@ -47,6 +61,7 @@ export interface ControlRoomOverviewData {
   generatedAt: string;
   approvals: ControlRoomApprovalSummary;
   incidents: ControlRoomIncidentSummary;
+  engineering: ControlRoomEngineeringSummary;
   workspaces: ControlRoomWorkspaceSummary[];
   modelDecision: ControlRoomModelDecisionSummary;
 }
@@ -114,17 +129,39 @@ function isApprovalSummary(value: unknown): value is ControlRoomApprovalSummary 
 }
 
 function isIncidentSummary(value: unknown): value is ControlRoomIncidentSummary {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ['state', 'openCount', 'criticalCount', 'newestIncidentAt']) ||
+    !isOperationalState(value.state)
+  ) {
+    return false;
+  }
+
+  if (value.state === 'UNKNOWN') {
+    return (
+      value.openCount === null && value.criticalCount === null && value.newestIncidentAt === null
+    );
+  }
+
+  return (
+    isNonNegativeInteger(value.openCount) &&
+    isNonNegativeInteger(value.criticalCount) &&
+    value.criticalCount <= value.openCount &&
+    (value.newestIncidentAt === null || isTimestamp(value.newestIncidentAt))
+  );
+}
+
+function isEngineeringSummary(value: unknown): value is ControlRoomEngineeringSummary {
   if (!isRecord(value)) {
     return false;
   }
 
   return (
-    hasExactKeys(value, ['state', 'openCount', 'criticalCount', 'newestIncidentAt']) &&
+    hasExactKeys(value, ['state', 'runId', 'eventType', 'observedAt']) &&
     isOperationalState(value.state) &&
-    isNonNegativeInteger(value.openCount) &&
-    isNonNegativeInteger(value.criticalCount) &&
-    value.criticalCount <= value.openCount &&
-    (value.newestIncidentAt === null || isTimestamp(value.newestIncidentAt))
+    isNullableString(value.runId) &&
+    isNullableString(value.eventType) &&
+    (value.observedAt === null || isTimestamp(value.observedAt))
   );
 }
 
@@ -184,6 +221,7 @@ function isOverviewData(value: unknown): value is ControlRoomOverviewData {
       'generatedAt',
       'approvals',
       'incidents',
+      'engineering',
       'workspaces',
       'modelDecision',
     ]) &&
@@ -191,6 +229,7 @@ function isOverviewData(value: unknown): value is ControlRoomOverviewData {
     isTimestamp(value.generatedAt) &&
     isApprovalSummary(value.approvals) &&
     isIncidentSummary(value.incidents) &&
+    isEngineeringSummary(value.engineering) &&
     Array.isArray(value.workspaces) &&
     value.workspaces.length <= CONTROL_ROOM_WORKSPACE_IDS.length &&
     value.workspaces.every(isWorkspaceSummary) &&
