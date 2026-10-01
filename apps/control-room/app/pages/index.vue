@@ -73,8 +73,8 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-function formatCount(value: number | undefined): string {
-  return value === undefined ? '—' : new Intl.NumberFormat('ru-RU').format(value);
+function formatCount(value: number | null | undefined): string {
+  return value === null || value === undefined ? '—' : new Intl.NumberFormat('ru-RU').format(value);
 }
 </script>
 
