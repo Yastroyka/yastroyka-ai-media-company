@@ -138,7 +138,9 @@ function isIncidentSummary(value: unknown): value is ControlRoomIncidentSummary 
   }
 
   if (value.state === 'UNKNOWN') {
-    return value.openCount === null && value.criticalCount === null && value.newestIncidentAt === null;
+    return (
+      value.openCount === null && value.criticalCount === null && value.newestIncidentAt === null
+    );
   }
 
   return (
