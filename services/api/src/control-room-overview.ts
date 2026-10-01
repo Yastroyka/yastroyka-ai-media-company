@@ -109,9 +109,7 @@ function publicationState(
   return 'DEGRADED';
 }
 
-function nextPublicationAction(
-  publication: PublicationDiscoveryRecord | undefined,
-): string | null {
+function nextPublicationAction(publication: PublicationDiscoveryRecord | undefined): string | null {
   if (publication === undefined || publication.status === 'PUBLISHED') {
     return null;
   }
